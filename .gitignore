@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.dist-info/
+*.egg
+
+# Environment variables
+.env
+
+# Virtual environment
+.venv/
+venv/
+env/
+env.bak/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Test coverage
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Pytest
+.cache
+pytest_cache/
