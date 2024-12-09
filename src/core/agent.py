@@ -35,31 +35,25 @@ class Agent:
         Instructions:
         1. Analyze the query, previous reasoning steps, and observations.
         2. Decide on the next action: use a tool or provide a final answer.
-        3. Respond in the following JSON format:
+        3. You MUST respond with ONLY a valid JSON object in one of these two formats:
 
-        If you need to use a tool:
+        Format 1 - If you need to use a tool:
         {{
             "thought": "Your detailed reasoning about what to do next",
             "action": {{
-                "name": "Tool name (wikipedia, google, serpapi, or none)",
-                "reason": "Explanation of why you chose this tool",
-                "input": "Specific input for the tool, if different from the original query"
+                "name": "EXACT_TOOL_NAME",
+                "reason": "Brief explanation of why you chose this tool",
+                "input": "Specific input for the tool"
             }}
         }}
 
-        If you have enough information to answer the query:
+        Format 2 - If you have enough information to answer:
         {{
-            "thought": "Your final reasoning process",
-            "answer": "Your comprehensive answer to the query"
+            "thought": "Your reasoning about why you can now answer the query",
+            "answer": "Your final answer to the query"
         }}
 
-        Remember:
-        - Be thorough in your reasoning.
-        - Use tools when you need more information.
-        - Always base your reasoning on the actual observations from tool use.
-        - If a tool returns no results or fails, acknowledge this and consider using a different tool or approach.
-        - Provide a final answer only when you're confident you have sufficient information.
-        - If you cannot find the necessary information after using available tools, admit that you don't have enough information to answer the query confidently.
+        DO NOT include any text before or after the JSON object. The response must be parseable JSON.
         """
 
     def register(self, name: str, func: Callable[[str], str]) -> None:
@@ -87,21 +81,101 @@ class Agent:
 
     def decide(self, response: str) -> None:
         try:
-            parsed_response = json.loads(response.strip().strip("`").strip())
+            parsed_response = self.extract(response)
+
             if "action" in parsed_response:
                 action = parsed_response["action"]
                 tool_name_str = action["name"].upper()
                 if tool_name_str not in self.tools:
                     raise ValueError(f"Unsupported tool: {tool_name_str}")
-                tool_name = tool_name_str
-                self.act(tool_name, action.get("input", self.query))
-            elif "answer" in parsed_response:
-                self.trace("assistant", f"Final Answer: {parsed_response['answer']}")
+                self.act(tool_name_str, action.get("input", self.query))
             else:
-                raise ValueError("Invalid response format")
+                self.trace("assistant", f"Final Answer: {parsed_response['answer']}")
+
+        except ValueError as e:
+            error_msg = f"Error processing response: {str(e)}"
+            logging.error(error_msg)
+            self.trace("system", error_msg)
+
+    def _extract_first_code_block(self, input_string: str) -> str:
+        """
+        Extracts the first code block from the provided string.
+
+        Args:
+            input_string (str): The input string containing code blocks.
+
+        Returns:
+            str: The extracted code block, or an empty string if no code block is found.
+        """
+        import re
+
+        # Use regular expression to find the first code block
+        match = re.search(r"```(.*?)```", input_string, re.DOTALL)
+        if match:
+            # Return the first code block without the backticks
+            return match.group(1).strip()
+        return ""
+
+    def extract(self, response: str) -> dict:
+        """
+        Extracts and validates structured information from the response string.
+
+        Args:
+            response (str): The response string to parse
+
+        Returns:
+            dict: Parsed and validated response dictionary
+
+        Raises:
+            ValueError: If the response format is invalid or cannot be parsed
+        """
+        try:
+            # Extract the first JSON block if there's any extra text
+            response = response.strip()
+            if response.startswith("```json"):
+                response = response[7:]
+            if response.endswith("```"):
+                response = response[:-3]
+            response = response.strip()
+            
+            # Try to parse the JSON
+            parsed_response = json.loads(response)
+
+            # Validate required fields
+            if not isinstance(parsed_response, dict):
+                raise ValueError("Response must be a JSON object")
+            
+            if "thought" not in parsed_response:
+                raise ValueError("Response must contain a 'thought' field")
+
+            # Check for valid keys
+            if not any(key in parsed_response for key in ["action", "answer"]):
+                raise ValueError("Response must contain either 'action' or 'answer' key")
+
+            # Validate action structure if present
+            if "action" in parsed_response:
+                action = parsed_response["action"]
+                if not isinstance(action, dict):
+                    raise ValueError("Action must be a JSON object")
+                if not all(key in action for key in ["name", "reason", "input"]):
+                    raise ValueError("Action must contain 'name', 'reason', and 'input' fields")
+                if action["name"] not in self.tools:
+                    raise ValueError(f"Unknown tool name: {action['name']}")
+
+            return parsed_response
+
+        except json.JSONDecodeError as e:
+            # Clean the response for logging
+            clean_response = response.replace('\n', '\\n')
+            logger.error(f"Invalid JSON format in response: {clean_response}")
+            logger.error(f"JSON parse error: {str(e)}")
+            raise ValueError("Response is not valid JSON. Please try again.") from e
+        except ValueError as e:
+            logger.error(f"Validation error: {str(e)}")
+            raise
         except Exception as e:
-            logger.error(f"Error processing response: {str(e)}")
-            self.think()
+            logger.error(f"Unexpected error while parsing response: {str(e)}")
+            raise ValueError("Failed to process the response. Please try again.") from e
 
     def act(self, tool_name: str, query: str) -> None:
         tool = self.tools.get(tool_name)

@@ -7,6 +7,7 @@ from models.responsestats import ResponseStats
 
 logger = logging.getLogger(__name__)
 
+logger.setLevel(logging.INFO)
 
 class GenerativeModel:
     def __init__(
@@ -27,7 +28,7 @@ class GenerativeModel:
 
         start_time = time.time()  # Start timing
 
-        print(f"Prompt: {prompt}")
+        logger.debug(f"Prompt: {prompt}")
 
         response = completion(
             temperature=self.temperature,
@@ -51,10 +52,10 @@ class GenerativeModel:
             (token_usage.total_tokens / elapsed_time) if elapsed_time > 0 else 0
         )
 
-        print(f"Prompt tokens: {token_usage.prompt_tokens}")
-        print(f"Completion tokens: {token_usage.completion_tokens}")
-        print(f"Tokens per second: {tokens_per_second}")
-        print(f"Content: {response.choices[0].message.content}")
+        logger.debug(f"Prompt tokens: {token_usage.prompt_tokens}")
+        logger.debug(f"Completion tokens: {token_usage.completion_tokens}")
+        logger.debug(f"Tokens per second: {tokens_per_second}")
+        logger.debug(f"Content: {response.choices[0].message.content}")
 
         return ResponseStats(
             content=response.choices[0].message.content,
