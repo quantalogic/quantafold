@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class ResponseStats(BaseModel):
-    """Reponse for the agent."""
+    """Response statistics for the agent."""
 
     content: str = Field(
         title="Response Content",
@@ -23,4 +23,8 @@ class ResponseStats(BaseModel):
     tokens_per_second: float = Field(
         title="Tokens Per Second",
         description="The rate of tokens generated per second.",
+    )
+    execution_time: float = Field(
+        title="Execution Time",
+        description="Time taken to generate the response in seconds.",
     )

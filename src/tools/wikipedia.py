@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.INFO)
 
-
-def use_wikipedia(query: str, lang: str = "en") -> str:
+def use_wikipedia(query: str, lang: str = "en",max_lines: int = 700) -> str:
     """Fetch summary from Wikipedia in a specified language."""
     if not query:
         return "Error: Query cannot be empty."
@@ -30,9 +29,9 @@ def use_wikipedia(query: str, lang: str = "en") -> str:
             time.sleep(0.5)
             page = wikipedia.page(search_results[0], auto_suggest=False)
             summary = page.summary
-            if len(summary.split(".")) > 3:
+            if len(summary.split(".")) > max_lines:
                 # Limit to first 3 sentences if summary is long
-                summary = ". ".join(summary.split(".")[:3]) + "."
+                summary = ". ".join(summary.split(".")[:max_lines]) + "."
             logger.info(f"Fetched summary for query '{query}'")
             return summary
         except wikipedia.exceptions.DisambiguationError as e:

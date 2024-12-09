@@ -3,7 +3,7 @@ import logging
 
 from litellm import completion, token_counter
 
-from models.responsestats import ResponseStats
+from src.models.responsestats import ResponseStats
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ class GenerativeModel:
             completion_tokens=token_usage.completion_tokens,
             total_tokens=token_usage.total_tokens,
             tokens_per_second=tokens_per_second,
+            execution_time=elapsed_time
         )
 
     def get_token_count(self, message: str) -> int:

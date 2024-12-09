@@ -21,3 +21,13 @@ class Config(BaseModel):
     max_tokens: int = Field(
         4096, title="Max Tokens", description="Maximum number of tokens to generate"
     )
+    enable_task_history: bool = Field(
+        True,
+        title="Enable Task History",
+        description="Toggle for detailed task history logging",
+    )
+    log_error_messages: bool = Field(
+        True,
+        title="Log Error Messages",
+        description="Toggle for logging error messages during execution",
+    )
