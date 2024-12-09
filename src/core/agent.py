@@ -18,7 +18,7 @@ class Agent:
         self.tools: dict[str, Tool] = {}
         self.messages: list[Message] = []
         self.query = ""
-        self.max_iterations = 5
+        self.max_iterations = 20
         self.current_iteration = 0
         self.prompt_template = self.load_template()
 
@@ -28,23 +28,25 @@ You are a ReAct (Reasoning and Acting) agent tasked with answering the following
 
 You must anwser in less than {max_iterations} iterations.
 
+You reason thhrough the query and decide on the best course of action to answer it accurately according to the session history and available tools.
+
 ## Query to solve:
 
-<Query>
+<query>
 {query}
-</Query>
+</query>
 
 Your goal is to reason about the query and decide on the best course of action to answer it accurately.
 
-## Task History:
-<History>
+## Session History:
 {history}
-</History>
 
 ## Available tools:
-<Tools>
+<tools>
 {tools}
-</Tools>
+</tools>
+
+TOOL Accepts only one parameter : query
 
 ## Instructions:
 1. Analyze the query, previous reasoning steps, and observations.
@@ -57,7 +59,7 @@ Format 1 - If you need to use a tool:
 <response>
     <thought>Your detailed reasoning about what to do next</thought>
     <action>
-        <name>EXACT_TOOL_NAME</name>
+        <tool_name>EXACT_TOOL_NAME</tool_name>
         <reason>Brief explanation of why you chose this tool</reason>
         <input>Specific input for the tool</input>
     </action>
@@ -78,35 +80,17 @@ DO NOT include any text before or after the XML object. The response must be wel
     def register(self, name: str, func: Callable[[str], str]) -> None:
         self.tools[name] = Tool(name.upper(), func)
 
-    def trace(self, role: str, content: str) -> None:
+    def add_to_session_memory(self, role: str, content: str) -> None:
         timestamp = datetime.utcnow().isoformat()
         self.messages.append(Message(role=role, content=content, timestamp=timestamp))
 
     def get_history(self) -> str:
-        total_steps = len(self.messages)
-        remaining_iterations = (
-            self.max_iterations - self.current_iteration
-            if hasattr(self, "max_iterations") and hasattr(self, "current_iteration")
-            else 0
+        history = "\n".join(
+            [f"{msg.timestamp} - {msg.role}: {msg.content}" for msg in self.messages]
         )
-
-        xml_output = ['<?xml version="1.0" encoding="UTF-8"?>']
-        xml_output.append("<conversation>")
-        xml_output.append("<metadata>")
-        xml_output.append(f"    <total_steps>{total_steps}</total_steps>")
-        xml_output.append(
-            f"    <remaining_iterations>{remaining_iterations}</remaining_iterations>"
-        )
-        xml_output.append("</metadata>")
-
-        for idx, msg in enumerate(self.messages, 1):
-            xml_output.append(f'    <message step="{idx}/{total_steps}">')
-            xml_output.append(f"        <timestamp>{msg.timestamp}</timestamp>")
-            xml_output.append(f"        <role>{msg.role}</role>")
-            xml_output.append(f"        <content><![CDATA[{msg.content}]]></content>")
-            xml_output.append("    </message>")
-
-        xml_output.append("</conversation>")
+        xml_output = ["<history>"]
+        xml_output.append(history)
+        xml_output.append("</history>")
         return "\n".join(xml_output)
 
     def think(self) -> None:
@@ -125,39 +109,56 @@ DO NOT include any text before or after the XML object. The response must be wel
         print(prompt)
         print("=" * 40)  # Add a separator for consistency
         response = self.ask_llm(prompt)
-        self.trace("assistant", f"Thought: {response.content}")
+        self.add_to_session_memory("assistant", f"Thought: {response.content}")
         self.decide(response.content)
 
     def decide(self, response: str) -> None:
+        """Process the response from the LLM and decide on next action."""
         try:
             parsed_response = self.extract(response)
 
             if parsed_response.find("action") is not None:
                 action = parsed_response.find("action")
-                tool_name_str = action.find("name").text.upper()
+                tool_name = action.find("tool_name")
+
+                if tool_name is None or not tool_name.text:
+                    raise ValueError("Tool name is missing or empty")
+
+                tool_name_str = tool_name.text.upper()
                 if tool_name_str not in self.tools:
                     raise ValueError(f"Unsupported tool: {tool_name_str}")
+
+                action_input = action.find("input")
+                if action_input is None or not action_input.text:
+                    action_input_str = self.query
+                else:
+                    action_input_str = action_input.text
+
                 print(f"Tool: {tool_name_str}")
-                action_input = (
-                    action.find("input").text
-                    if action.find("input") is not None
-                    else self.query
-                )
-                print(f"Input: {action_input}")
-                self.act(tool_name_str, action_input)
+                print(f"Input: {action_input_str}")
+                self.act(tool_name_str, action_input_str)
+
             elif parsed_response.find("answer") is not None:
+                answer = parsed_response.find("answer")
+                if answer is None or not answer.text:
+                    raise ValueError("Answer element is empty")
+
                 print("Answering directly")
-                answer = parsed_response.find("answer").text
-                self.trace("assistant", f"Final Answer: {answer}")
+                answer_text = answer.text.strip()
+                self.add_to_session_memory("assistant", f"Answer: {answer_text}")
+
             else:
                 raise ValueError(
                     "Response must contain either 'action' or 'answer' element."
                 )
 
-        except ValueError as e:
+        except Exception as e:
             error_msg = f"Error processing response: {str(e)}"
-            logging.error(error_msg)
-            self.trace("system", error_msg)
+            logger.error(error_msg)
+            self.add_to_session_memory("system", f"Error: {error_msg}")
+            # Continue thinking if there's an error, unless we've hit the max iterations
+            if self.current_iteration < self.max_iterations:
+                self.think()
 
     def extract(self, response: str) -> ET.ElementTree:
         """
@@ -197,13 +198,13 @@ DO NOT include any text before or after the XML object. The response must be wel
             answer = root.find("answer")
 
             if action is not None:
-                name = action.find("name")
+                name = action.find("tool_name")
                 reason = action.find("reason")
                 input_elem = action.find("input")
 
                 if name is None or reason is None or input_elem is None:
                     raise ValueError(
-                        "Action element must contain 'name', 'reason', and 'input' elements."
+                        "Action element must contain 'tool_name', 'reason', and 'input' elements."
                     )
 
                 if name.text.upper() not in self.tools:
@@ -236,26 +237,31 @@ DO NOT include any text before or after the XML object. The response must be wel
         if tool:
             result = tool.use(query)
             observation = f"Observation from {tool_name}: {result}"
-            self.trace("system", observation)
+            self.add_to_session_memory("system", f"Observation: {observation}")
             self.think()
         else:
             logger.error(f"No tool registered for choice: {tool_name}")
             self.think()
 
     def execute(self, query: str) -> str:
-        self.query = query
-        self.trace("user", query)
-        self.think()
-        final_answers = [
-            msg.content
-            for msg in self.messages
-            if msg.role == "assistant" and "Final Answer" in msg.content
-        ]
-        return (
-            final_answers[-1].split("Final Answer: ")[-1]
-            if final_answers
-            else "Unable to provide an answer."
-        )
+        """Execute a query and return the final answer."""
+        try:
+            self.query = query
+            self.current_iteration = 0
+            self.messages = []  # Reset message history for new query
+            self.add_to_session_memory("user", f"Query: {query}")
+            self.think()
+
+            # Look for the most recent answer in the message history
+            for msg in reversed(self.messages):
+                if msg.role == "assistant" and msg.content.startswith("Answer: "):
+                    return msg.content.replace("Answer: ", "")
+
+            return "Unable to provide an answer after maximum iterations."
+
+        except Exception as e:
+            logger.error(f"Error executing query: {str(e)}")
+            return f"An error occurred while processing your query: {str(e)}"
 
     def ask_llm(self, prompt: str) -> ResponseStats:
         """Get response from the LLM model."""
@@ -270,7 +276,7 @@ DO NOT include any text before or after the XML object. The response must be wel
         thought_elem.text = thought
         if action:
             action_elem = ET.SubElement(response, "action")
-            name_elem = ET.SubElement(action_elem, "name")
+            name_elem = ET.SubElement(action_elem, "tool_name")
             name_elem.text = action["name"]
             reason_elem = ET.SubElement(action_elem, "reason")
             reason_elem.text = action["reason"]
