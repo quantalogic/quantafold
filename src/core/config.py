@@ -2,6 +2,16 @@ from pydantic import BaseModel, Field
 
 
 class Config(BaseModel):
+    name: str = Field(
+        title="Agent Name",
+        description="The name of the agent",
+        default="Default Agent"
+    )
+    role: str = Field(
+        title="Agent Role",
+        description="The role of the agent in the system",
+        default="Default role for the agent"
+    )
     model: str = Field(
         title="Model",
         description="The model to be used for completion",

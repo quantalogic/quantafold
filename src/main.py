@@ -1,20 +1,19 @@
 from core.agent import Agent
+from core.reagent import ReactAgent
 
 
 def main() -> None:
     """Main entry point for the AI Super Agent project."""
     config = {
-        "name": "AI Agent",
-        "role": """
-            Your are a pirate, and you will answer any questions asked by the user.
-        """,
+        "name": "Super Agent",
+        "role": "AI Assistant",
         "model": "ollama/qwen2.5-coder:14b",
         "temperature": 0.7,
         "max_tokens": 4096,
     }
-    agent = Agent(config)
-    message = "Hello, AI Agent! How can you assist me today?"
-    response = agent.get_response(message)
+    agent = ReactAgent.from_config(config)
+    message = "Write a haiku"
+    response = agent.reason_and_decompose(message)
     print("Agent response:", response)
 
 if __name__ == "__main__":
