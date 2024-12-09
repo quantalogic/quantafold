@@ -1,7 +1,24 @@
+# Summary Section
+
+- **Overall Summary:** Replaced JSON generation and extraction with XML counterparts in the agent to enhance data handling and improve error resilience.
+- **Changed Files:**
+  - `src/core/agent.py`: Swapped JSON generation and parsing with XML generation and parsing to maintain functionality while improving safety and error handling.
+- **Deleted Files:** None
+
+# XML Section
+
+```xml
+<code_changes>
+  <changed_files>
+    <file>
+      <file_summary>Replaced JSON generation and extraction with XML equivalents for safer and more resilient data handling.</file_summary>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/core/agent.py</file_path>
+      <file_code><![CDATA[
 # src/core/agent.py
 import logging
-import xml.etree.ElementTree as ET
 from typing import Callable
+import xml.etree.ElementTree as ET
 
 from core.generative_model import GenerativeModel
 from models.message import Message
@@ -87,10 +104,6 @@ DO NOT include any text before or after the XML object. The response must be wel
             history=self.get_history(),
             tools=", ".join([str(tool.name) for tool in self.tools.values()]),
         )
-        print("Thinking...")
-        print("=" * 40)  # Add a separator for better visibility
-        print(prompt)
-        print("=" * 40)  # Add a separator for consistency
         response = self.ask_llm(prompt)
         self.trace("assistant", f"Thought: {response}")
         self.decide(response)
@@ -232,3 +245,8 @@ DO NOT include any text before or after the XML object. The response must be wel
             answer_elem = ET.SubElement(response, 'answer')
             answer_elem.text = answer
         return ET.tostring(response, encoding='unicode')
+      ]]></file_code>
+    </file>
+  </changed_files>
+</code_changes>
+```
