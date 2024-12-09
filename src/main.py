@@ -1,20 +1,17 @@
 from core.agent import Agent
-from core.reagent import ReactAgent
+from core.generative_model import GenerativeModel
+from tools.wikipedia import use_wikipedia
+
 
 
 def main() -> None:
-    """Main entry point for the AI Super Agent project."""
-    config = {
-        "name": "Super Agent",
-        "role": "AI Assistant",
-        "model": "ollama/qwen2.5-coder:14b",
-        "temperature": 0.7,
-        "max_tokens": 4096,
-    }
-    agent = ReactAgent.from_config(config)
-    message = "Write a haiku"
-    response = agent.reason_and_decompose(message)
-    print("Agent response:", response)
+    model = GenerativeModel(model="ollama/qwen2.5-coder:14b")
+    agent = Agent(model=model)
+    agent.register("search_wikipedia",use_wikipedia)
+    print("Ask a question:")
+    response = agent.execute(input())
+    print(response)
+
 
 if __name__ == "__main__":
     main()

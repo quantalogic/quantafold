@@ -3,7 +3,7 @@ import logging
 
 from litellm import completion, token_counter
 
-from .responsestats import ResponseStats
+from models.responsestats import ResponseStats
 
 logger = logging.getLogger(__name__)
 

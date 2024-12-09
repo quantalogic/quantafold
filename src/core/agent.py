@@ -3,17 +3,17 @@ import json
 import logging
 from typing import Callable
 
-from .enums import Name
-from .generative_model import GenerativeModel
-from .models import Choice, Message
-from .tool import Tool
+from core.generative_model import GenerativeModel
+from models.message import Message
+from tools.tool import Tool
 
 logger = logging.getLogger(__name__)
+
 
 class Agent:
     def __init__(self, model: GenerativeModel) -> None:
         self.model = model
-        self.tools: dict[Name, Tool] = {}
+        self.tools: dict[str, Tool] = {}
         self.messages: list[Message] = []
         self.query = ""
         self.max_iterations = 5
@@ -62,8 +62,8 @@ class Agent:
         - If you cannot find the necessary information after using available tools, admit that you don't have enough information to answer the query confidently.
         """
 
-    def register(self, name: Name, func: Callable[[str], str]) -> None:
-        self.tools[name] = Tool(name, func)
+    def register(self, name: str, func: Callable[[str], str]) -> None:
+        self.tools[name] = Tool(name.upper(), func)
 
     def trace(self, role: str, content: str) -> None:
         self.messages.append(Message(role=role, content=content))
@@ -91,9 +91,9 @@ class Agent:
             if "action" in parsed_response:
                 action = parsed_response["action"]
                 tool_name_str = action["name"].upper()
-                if tool_name_str not in Name.__members__:
+                if tool_name_str not in self.tools:
                     raise ValueError(f"Unsupported tool: {tool_name_str}")
-                tool_name = Name[tool_name_str]
+                tool_name = tool_name_str
                 self.act(tool_name, action.get("input", self.query))
             elif "answer" in parsed_response:
                 self.trace("assistant", f"Final Answer: {parsed_response['answer']}")
@@ -103,7 +103,7 @@ class Agent:
             logger.error(f"Error processing response: {str(e)}")
             self.think()
 
-    def act(self, tool_name: Name, query: str) -> None:
+    def act(self, tool_name: str, query: str) -> None:
         tool = self.tools.get(tool_name)
         if tool:
             result = tool.use(query)
