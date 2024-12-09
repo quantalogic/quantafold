@@ -10,9 +10,10 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
+MODEL_NAME= "gpt-4o-mini"
 
 def main() -> None:
-    model = GenerativeModel(model="ollama/qwen2.5-coder:14b")
+    model = GenerativeModel(model=MODEL_NAME)
     agent = Agent(model=model)
     agent.register("SEARCH_WIKIPEDIA", use_wikipedia)
 

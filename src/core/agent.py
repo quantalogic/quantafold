@@ -26,32 +26,35 @@ class Agent:
         return """
 You are a ReAct (Reasoning and Acting) agent tasked with answering the following query:
 
-You must anwser in less than {max_iterations} iterations.
-
-You reason thhrough the query and decide on the best course of action to answer it accurately according to the session history and available tools.
-
 ## Query to solve:
 
 <query>
 {query}
 </query>
 
+
+## Goal:
+
 Your goal is to reason about the query and decide on the best course of action to answer it accurately.
 
 ## Session History:
 {history}
+
+Current iteration: {current_iteration}
+Max iterations: {max_iterations}
 
 ## Available tools:
 <tools>
 {tools}
 </tools>
 
-TOOL Accepts only one parameter : query
-
 ## Instructions:
-1. Analyze the query, previous reasoning steps, and observations.
-2. Decide on the next action: use a tool or provide a final answer.
-3. You MUST respond with ONLY a valid XML object in one of these two formats:
+1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
+2. Decide on the next action: use a tool or provide a final answer. You can use a tool to perform an action and get an information where you are not sure how to answer the query.
+3. You must anwser in less than {max_iterations} iterations.
+4. You MUST respond with ONLY a valid XML object in one of these two formats:
+
+The current tools ONLY ACCEPT ONE PARAMETER.
 
 ## Output Format:
 Format 1 - If you need to use a tool:
@@ -101,6 +104,7 @@ DO NOT include any text before or after the XML object. The response must be wel
         prompt = self.prompt_template.format(
             query=self.query,
             history=self.get_history(),
+            current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             tools=", ".join([str(tool.name) for tool in self.tools.values()]),
         )

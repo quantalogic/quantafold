@@ -34,12 +34,10 @@ class GenerativeModel:
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             model=self.model,
-            system_prompt=self.role,
             messages=[
                 {"role": "system", "content": self.role},
                 {"role": "user", "content": prompt},
             ],
-            get_token_count=True,  # Ensure token count is returned
         )
 
         end_time = time.time()  # End timing
