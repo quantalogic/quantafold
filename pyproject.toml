@@ -25,3 +25,6 @@ build-backend = "poetry.core.masonry.api"
 line-length = 88
 target-version = "py39"
 select = ["E", "F", "I", "N", "W", "B", "COM", "C4", "UP", "PT", "RET", "SIM"]
+extend-ignore = ["E501", "COM812"]  # Example of extending ignored rules including COM812
+
+
