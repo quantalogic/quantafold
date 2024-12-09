@@ -3,7 +3,6 @@ from core.generative_model import GenerativeModel
 from tools.wikipedia import use_wikipedia
 
 
-
 def main() -> None:
     model = GenerativeModel(model="ollama/qwen2.5-coder:14b")
     agent = Agent(model=model)
