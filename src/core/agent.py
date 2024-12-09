@@ -73,7 +73,7 @@ Format 2 - If you have enough information to answer:
 ```xml
 <response>
     <thought>Your reasoning about why you can now answer the query</thought>
-    <answer>Your final answer to the query</answer>
+    <answer><![CDATA[Your final answer to the query]]></answer>
 </response>
 ```
 
