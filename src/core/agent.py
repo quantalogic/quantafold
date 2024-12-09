@@ -89,7 +89,7 @@ DO NOT include any text before or after the XML object. The response must be wel
 
     def get_history(self) -> str:
         history = "\n".join(
-            [f"{msg.timestamp} - {msg.role}: {msg.content}" for msg in self.messages]
+            [f"step{str(i + 1).zfill(4)} - {msg.role}: {msg.content}" for i, msg in enumerate(self.messages)]
         )
         xml_output = ["<history>"]
         xml_output.append(history)
