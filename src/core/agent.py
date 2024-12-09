@@ -22,38 +22,52 @@ class Agent:
 
     def load_template(self) -> str:
         return """
-        You are a ReAct (Reasoning and Acting) agent tasked with answering the following query:
+You are a ReAct (Reasoning and Acting) agent tasked with answering the following query:
 
-        Query: {query}
+Query: 
 
-        Your goal is to reason about the query and decide on the best course of action to answer it accurately.
+<query>
+{query}
+</query>
 
-        Previous reasoning steps and observations: {history}
+Your goal is to reason about the query and decide on the best course of action to answer it accurately.
 
-        Available tools: {tools}
+Previous reasoning steps and observations:
+<history>
+{history}
+</history>
 
-        Instructions:
-        1. Analyze the query, previous reasoning steps, and observations.
-        2. Decide on the next action: use a tool or provide a final answer.
-        3. You MUST respond with ONLY a valid JSON object in one of these two formats:
+Available tools: 
+<tools>
+{tools}
+</tools>
 
-        Format 1 - If you need to use a tool:
-        {{
-            "thought": "Your detailed reasoning about what to do next",
-            "action": {{
-                "name": "EXACT_TOOL_NAME",
-                "reason": "Brief explanation of why you chose this tool",
-                "input": "Specific input for the tool"
-            }}
-        }}
+Instructions:
+1. Analyze the query, previous reasoning steps, and observations.
+2. Decide on the next action: use a tool or provide a final answer.
+3. You MUST respond with ONLY a valid JSON object in one of these two formats:
 
-        Format 2 - If you have enough information to answer:
-        {{
-            "thought": "Your reasoning about why you can now answer the query",
-            "answer": "Your final answer to the query"
-        }}
+Format 1 - If you need to use a tool:
+```json
+{{
+    "thought": "Your detailed reasoning about what to do next",
+    "action": {{
+        "name": "EXACT_TOOL_NAME",
+        "reason": "Brief explanation of why you chose this tool",
+        "input": "Specific input for the tool"
+    }}
+}}
+```
 
-        DO NOT include any text before or after the JSON object. The response must be parseable JSON.
+Format 2 - If you have enough information to answer:
+```json
+{{
+    "thought": "Your reasoning about why you can now answer the query",
+    "answer": "Your final answer to the query"
+}}
+```
+
+DO NOT include any text before or after the JSON object. The response must be parseable JSON.
         """
 
     def register(self, name: str, func: Callable[[str], str]) -> None:
@@ -88,8 +102,11 @@ class Agent:
                 tool_name_str = action["name"].upper()
                 if tool_name_str not in self.tools:
                     raise ValueError(f"Unsupported tool: {tool_name_str}")
+                print(f"Tool: {tool_name_str}")
+                print(f"Input: {action.get('input', self.query)}")
                 self.act(tool_name_str, action.get("input", self.query))
             else:
+                print("Answering directly")
                 self.trace("assistant", f"Final Answer: {parsed_response['answer']}")
 
         except ValueError as e:
