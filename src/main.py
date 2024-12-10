@@ -11,6 +11,7 @@ from rich.theme import Theme
 from tools.file_reader import FileReaderTool
 from tools.file_writer import FileWriterTool
 from tools.shell_command import ShellCommandTool
+from tools.user_input import UserInputTool
 from tools.wikipedia import WikipediaTool
 
 # Configure rich console
@@ -32,6 +33,8 @@ logging.basicConfig(
 )
 
 MODEL_NAME = "gpt-4o-mini"
+# MODEL_NAME = "ollama/qwen2.5-coder:14b"
+# MODEL_NAME = "ollama/exaone3.5:2.4b"
 
 
 def get_multiline_input() -> str:
@@ -55,6 +58,7 @@ def main() -> None:
     agent.register(ShellCommandTool())
     agent.register(FileReaderTool())
     agent.register(FileWriterTool())
+    agent.register(UserInputTool())
 
     # Build tool descriptions for welcome message
     tool_descriptions = "".join(

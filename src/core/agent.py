@@ -97,7 +97,22 @@ Here are examples of how to use the available tools:
 Format 1 - If you need to use a tool:
 ```xml
 <response>
-    <thought><![CDATA[Your detailed reasoning about what to do next]]></thought>
+    <thought><![CDATA[
+    
+    ... Your detailed reasoning about what to do next ...
+
+    Add the envisaged step to complete:
+
+    ## Steps to complete:
+
+    - [ ] I need to do X
+    - [ ] I need to perform Y
+
+    ## Completed Steps:
+
+    
+    
+    ]]></thought>
     <action>
         <tool_name>EXACT_TOOL_NAME</tool_name>
         <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
@@ -112,7 +127,7 @@ Format 1 - If you need to use a tool:
 </response>
 ```
 
-Format 2 - If you have enough information to answer:
+Format 2 - If you have enough information to answer and all the steps are completed:
 ```xml
 <response>
     <thought><![CDATA[Your reasoning about why you can now answer the query]]></thought>
