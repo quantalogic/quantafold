@@ -75,8 +75,9 @@ Your goal is to reason about the query and decide on the best course of action t
 {history}
 ]]></history>
 
-Current iteration: {current_iteration}
-Max iterations: {max_iterations}
+- Current iteration: {current_iteration}
+- Max iterations: {max_iterations}
+- You have {remaining_iterations} iterations left.
 
 ## Available tools:
 
@@ -99,18 +100,24 @@ Format 1 - If you need to use a tool:
 <response>
     <thought><![CDATA[
     
-    ... Your detailed reasoning about what to do next ...
+    ... Your detailed reasoning about the next steps to achieve the goal ...
 
-    Add the envisaged step to complete:
+    ## Planned Action Steps:
 
-    ## Steps to complete:
+    - [ ] Identify and clarify the specific task X that needs to be addressed.
+    - [ ] Execute task Y, ensuring all necessary resources and information are gathered.
 
-    - [ ] I need to do X
-    - [ ] I need to perform Y
+    ## Completed Actions:
 
-    ## Completed Steps:
+    ... List all actions that have been successfully completed, along with their outcomes and any significant insights gained ...
 
-    
+    ## Cancelled Actions:
+
+    ... Document any actions that were abandoned, including the rationale behind the decision ...
+
+    ## Upcoming Action:
+
+    - [ ] Proceed to complete task Z, outlining any prerequisites needed for execution.
     
     ]]></thought>
     <action>
@@ -228,6 +235,7 @@ Messages in History: {len(self.messages)}""",
             history=self.get_history(),
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
+            remaining_iterations=self.max_iterations - self.current_iteration,
             tools=tool_examples,
         )
 

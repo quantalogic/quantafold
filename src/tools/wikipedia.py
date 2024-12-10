@@ -18,7 +18,7 @@ class WikipediaAPIError(Exception):
 class WikipediaTool(Tool):
     name: str = Field("SEARCH_WIKIPEDIA", description="A Wikipedia search tool, can used to fetch summaries of Wikipedia articles.")
     description: str = Field(
-        "Search Wikipedia for a given query and return a summary",
+        "Search Wikipedia for a given query and return a summary, prefer on concept by query.",
         description="A brief description of what the tool does",
     )
 
@@ -26,7 +26,7 @@ class WikipediaTool(Tool):
         ToolArgument(
             name="query",
             type="string",
-            description="The search term to query on Wikipedia",
+            description="The search term to query on Wikipedia, prefer simple concept.",
         ),
         ToolArgument(
             name="lang",
