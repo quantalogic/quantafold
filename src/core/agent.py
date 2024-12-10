@@ -24,18 +24,18 @@ You are a ReAct (Reasoning and Acting) agent tasked with answering the following
 
 ## Query to solve:
 
-<query>
+<query><![CDATA[
 {query}
-</query>
+]]></query>
 
 ## Goal:
 
 Your goal is to reason about the query and decide on the best course of action to answer it accurately.
 
 ## Session History:
-<history>
+<history><![CDATA[
 {history}
-</history>
+]]></history>
 
 Current iteration: {current_iteration}
 Max iterations: {max_iterations}
@@ -45,7 +45,9 @@ Max iterations: {max_iterations}
 Here are examples of how to use the available tools:
 
 <available_tools>
+<![CDATA[
 {tools}
+]]>
 </available_tools>
 
 ## Instructions:
@@ -57,14 +59,14 @@ Here are examples of how to use the available tools:
 Format 1 - If you need to use a tool:
 ```xml
 <response>
-    <thought>Your detailed reasoning about what to do next</thought>
+    <thought><![CDATA[Your detailed reasoning about what to do next]]></thought>
     <action>
         <tool_name>EXACT_TOOL_NAME</tool_name>
-        <reason>Brief explanation of why you chose this tool</reason>
+        <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
         <arguments>
             <arg>
                 <name>argument_name</name>
-                <value>argument_value</value>
+                <value><![CDATA[argument_value]]></value>
             </arg>
             <!-- Additional arguments as needed -->
         </arguments>
@@ -75,8 +77,8 @@ Format 1 - If you need to use a tool:
 Format 2 - If you have enough information to answer:
 ```xml
 <response>
-    <thought>Your reasoning about why you can now answer the query</thought>
-    <answer>Your final answer to the query</answer>
+    <thought><![CDATA[Your reasoning about why you can now answer the query]]></thought>
+    <answer><![CDATA[Your final answer to the query]]></answer>
 </response>
 ```
 
@@ -94,9 +96,26 @@ DO NOT include any text before or after the XML object. The response must be wel
 
     def get_history(self) -> str:
         """Get formatted session history."""
-        history = [msg.model_dump() for msg in self.messages]
+        history_list: list[str] = []
+        current_sequence: int = 1
+        current_role = ""
+        history_list.append(
+            f"------------------------- SEQUENCE: {current_sequence} -------------------------"
+        )
+        for msg in self.messages:
+            current_role = msg.role.upper()
+            history_list.append(f"{current_role}:\n{msg.content}\n")
+            if current_role == "TOOL_EXECUTION":
+                current_sequence += 1
+                history_list.append(
+                    f"------------------------- SEQUENCE: {current_sequence} -------------------------"
+                )
+
+        history = "\n".join(history_list)
+
         print("History:")
-        return str(history)  # Return the formatted history
+        print(history)
+        return str(history)
 
     def think(self) -> None:
         """Execute the thinking step of the agent."""
@@ -219,9 +238,9 @@ DO NOT include any text before or after the XML object. The response must be wel
                 if answer is None or not answer.text:
                     raise ValueError("Answer element is empty")
 
-                print("Answering directly")
+                print("Answering directly\n")
                 answer_text = answer.text.strip()
-                self.add_to_session_memory("assistant", f"Answer: {answer_text}")
+                self.add_to_session_memory("assistant", f"{answer_text}")
 
             else:
                 raise ValueError(
@@ -248,7 +267,7 @@ DO NOT include any text before or after the XML object. The response must be wel
                 print(f"Observation: {observation}")
                 self.add_to_session_memory(
                     "tool_execution",
-                    f"Observation: Executed tool '{tool_name}' with arguments {converted_args}. Result: {observation}",
+                    f"Executed tool :\n'{tool_name}' with arguments:\n{converted_args}.\nResult:\n{observation}\n",
                 )
                 self.think()
             except Exception as e:
@@ -302,8 +321,8 @@ DO NOT include any text before or after the XML object. The response must be wel
 
             # Return the last answer from the session history
             for msg in reversed(self.messages):
-                if msg.role == "assistant" and msg.content.startswith("Answer: "):
-                    return msg.content.replace("Answer: ", "")
+                if msg.role == "assistant":
+                    return msg.content
 
             return "Unable to provide an answer after maximum iterations."
 
@@ -313,7 +332,6 @@ DO NOT include any text before or after the XML object. The response must be wel
 
     def ask_llm(self, prompt: str) -> ResponseStats:
         """Get response from the language model."""
-        print(f"Prompt:\n{prompt}\n")
         return self.model.generate(prompt)
 
     def generate_xml_response(

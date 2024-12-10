@@ -1,13 +1,15 @@
 # src/react/agent.py
 import logging
 
-from litellm import completion, token_counter
+from litellm import completion
 
+from src.models.message import Message
 from src.models.responsestats import ResponseStats
 
 logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.INFO)
+
 
 class GenerativeModel:
     def __init__(
@@ -22,7 +24,9 @@ class GenerativeModel:
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-    def generate(self, prompt: str) -> ResponseStats:
+    def generate_with_history(
+        self, messages_history: list[Message], prompt: str
+    ) -> ResponseStats:
         """Get response from the agent along with token statistics."""
         import time
 
@@ -36,6 +40,7 @@ class GenerativeModel:
             model=self.model,
             messages=[
                 {"role": "system", "content": self.role},
+                *messages_history,
                 {"role": "user", "content": prompt},
             ],
         )
@@ -61,10 +66,10 @@ class GenerativeModel:
             completion_tokens=token_usage.completion_tokens,
             total_tokens=token_usage.total_tokens,
             tokens_per_second=tokens_per_second,
-            execution_time=elapsed_time
+            execution_time=elapsed_time,
         )
 
-    def get_token_count(self, message: str) -> int:
-        return token_counter(
-            model=self.model, messages=[{"role": "user", "content": message}]
-        )
+    def generate(self, prompt: str) -> ResponseStats:
+        """Get response from the agent along with token statistics."""
+
+        return self.generate_with_history([], prompt)
