@@ -346,6 +346,36 @@ Messages in History: {len(self.messages)}""",
             try:
                 # Convert argument types based on tool argument definitions
                 converted_args = self._convert_arguments(tool, arguments)
+
+                # Check if the tool needs validation
+                if tool.need_validation:
+                    # Create a nicely formatted panel showing the command details
+                    command_panel = Panel(
+                        f"""[bold]Command Details[/bold]
+Tool: {tool_name}
+Arguments: {converted_args}
+
+[italic]This command requires your permission to execute. Would you like to proceed?[/italic]
+""",
+                        title="🔒 Permission Required",
+                        border_style="yellow",
+                    )
+                    console.print(command_panel)
+
+                    # Ask for permission
+                    response = (
+                        input("\n[?] Please type 'y' to approve or 'n' to deny: ")
+                        .lower()
+                        .strip()
+                    )
+                    if response != "y":
+                        self.add_to_session_memory(
+                            "system",
+                            "Command execution cancelled by user.",
+                        )
+                        self.think()
+                        return
+
                 # Execute tool with converted arguments
                 result = tool.execute(**converted_args)
                 observation = f"Observation from {tool_name}: {result}"
