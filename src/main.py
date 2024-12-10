@@ -1,14 +1,13 @@
 import logging
 
+from core.agent import Agent
+from core.generative_model import GenerativeModel
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.theme import Theme
-
-from core.agent import Agent
-from core.generative_model import GenerativeModel
 from tools.file_reader import FileReaderTool
 from tools.shell_command import ShellCommandTool
 from tools.wikipedia import WikipediaTool

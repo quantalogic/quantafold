@@ -6,7 +6,6 @@ import os
 # Configure litellm
 import litellm
 from litellm import completion
-
 from models.message import Message
 from models.responsestats import ResponseStats
 

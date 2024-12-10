@@ -2,9 +2,8 @@ import logging
 from pathlib import Path
 from typing import List
 
-from pydantic import Field
-
 from models.tool import Tool, ToolArgument
+from pydantic import Field
 
 logger = logging.getLogger(__name__)
 
