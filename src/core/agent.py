@@ -61,13 +61,13 @@ Format 1 - If you need to use a tool:
     <action>
         <tool_name>EXACT_TOOL_NAME</tool_name>
         <reason>Brief explanation of why you chose this tool</reason>
-        <parameters>
-            <param>
-                <name>parameter_name</name>
-                <value>parameter_value</value>
-            </param>
-            <!-- Additional parameters as needed -->
-        </parameters>
+        <arguments>
+            <arg>
+                <name>argument_name</name>
+                <value>argument_value</value>
+            </arg>
+            <!-- Additional arguments as needed -->
+        </arguments>
     </action>
 </response>
 ```
@@ -147,7 +147,7 @@ DO NOT include any text before or after the XML object. The response must be wel
             if action is not None:
                 tool_name = action.find("tool_name")
                 reason = action.find("reason")
-                parameters = action.find("parameters")
+                arguments = action.find("arguments")
 
                 if tool_name is None or reason is None:
                     raise ValueError(
@@ -195,24 +195,24 @@ DO NOT include any text before or after the XML object. The response must be wel
                 if tool_name_str not in self.tools:
                     raise ValueError(f"Unsupported tool: {tool_name_str}")
 
-                # Extract parameters
-                params = {}
-                parameters_elem = action.find("parameters")
-                if parameters_elem is not None:
-                    for param in parameters_elem.findall("param"):
-                        name = param.find("name")
-                        value = param.find("value")
+                # Extract arguments
+                args = {}
+                arguments_elem = action.find("arguments")
+                if arguments_elem is not None:
+                    for arg in arguments_elem.findall("arg"):
+                        name = arg.find("name")
+                        value = arg.find("value")
                         if (
                             name is not None
                             and value is not None
                             and name.text
                             and value.text
                         ):
-                            params[name.text] = value.text
+                            args[name.text] = value.text
 
                 print(f"Tool: {tool_name_str}")
-                print(f"Parameters: {params}")
-                self.act(tool_name_str, params)
+                print(f"Arguments: {args}")
+                self.act(tool_name_str, args)
 
             elif parsed_response.find("answer") is not None:
                 answer = parsed_response.find("answer")
@@ -235,15 +235,15 @@ DO NOT include any text before or after the XML object. The response must be wel
             if self.current_iteration < self.max_iterations:
                 self.think()
 
-    def act(self, tool_name: str, parameters: Dict[str, Any]) -> None:
-        """Execute a tool with the given parameters."""
+    def act(self, tool_name: str, arguments: Dict[str, Any]) -> None:
+        """Execute a tool with the given arguments."""
         tool = self.tools.get(tool_name)
         if tool:
             try:
-                # Convert parameter types based on tool parameter definitions
-                converted_params = self._convert_parameters(tool, parameters)
-                # Execute tool with converted parameters
-                result = tool.execute(**converted_params)
+                # Convert argument types based on tool argument definitions
+                converted_args = self._convert_arguments(tool, arguments)
+                # Execute tool with converted arguments
+                result = tool.execute(**converted_args)
                 observation = f"Observation from {tool_name}: {result}"
                 print(f"Observation: {observation}")
                 self.add_to_session_memory("system", f"Observation: {observation}")
@@ -257,10 +257,10 @@ DO NOT include any text before or after the XML object. The response must be wel
             logger.error(f"No tool registered for choice: {tool_name}")
             self.think()
 
-    def _convert_parameters(
-        self, tool: Tool, parameters: dict[str, str]
+    def _convert_arguments(
+        self, tool: Tool, arguments: dict[str, str]
     ) -> dict[str, Any]:
-        """Convert parameters to their appropriate types based on tool parameter definitions."""
+        """Convert arguments to their appropriate types based on tool argument definitions."""
         converted = {}
         type_converters = {
             "string": str,
@@ -269,22 +269,22 @@ DO NOT include any text before or after the XML object. The response must be wel
             "bool": lambda x: x.lower() == "true",
         }
 
-        for param in tool.parameters:
-            if param.name in parameters:
-                value = parameters[param.name]
+        for arg in tool.arguments:
+            if arg.name in arguments:
+                value = arguments[arg.name]
                 try:
-                    if param.type in type_converters:
-                        converted[param.name] = type_converters[param.type](value)
+                    if arg.type in type_converters:
+                        converted[arg.name] = type_converters[arg.type](value)
                     else:
-                        converted[param.name] = value  # Keep as string if type unknown
+                        converted[arg.name] = value  # Keep as string if type unknown
                 except (ValueError, TypeError) as e:
                     raise ValueError(
-                        f"Failed to convert parameter '{param.name}' to {param.type}: {str(e)}"
+                        f"Failed to convert argument '{arg.name}' to {arg.type}: {str(e)}"
                     )
-            elif param.required:
-                raise ValueError(f"Missing required parameter: {param.name}")
-            elif param.default is not None:
-                converted[param.name] = param.default
+            elif arg.required:
+                raise ValueError(f"Missing required argument: {arg.name}")
+            elif arg.default is not None:
+                converted[arg.name] = arg.default
 
         return converted
 
@@ -334,14 +334,14 @@ DO NOT include any text before or after the XML object. The response must be wel
             reason = ET.SubElement(action_elem, "reason")
             reason.text = action["reason"]
 
-            if "parameters" in action:
-                params_elem = ET.SubElement(action_elem, "parameters")
-                for param_name, param_value in action["parameters"].items():
-                    param_elem = ET.SubElement(params_elem, "param")
-                    name = ET.SubElement(param_elem, "name")
-                    name.text = param_name
-                    value = ET.SubElement(param_elem, "value")
-                    value.text = str(param_value)
+            if "arguments" in action:
+                args_elem = ET.SubElement(action_elem, "arguments")
+                for arg_name, arg_value in action["arguments"].items():
+                    arg_elem = ET.SubElement(args_elem, "arg")
+                    name = ET.SubElement(arg_elem, "name")
+                    name.text = arg_name
+                    value = ET.SubElement(arg_elem, "value")
+                    value.text = str(arg_value)
 
         if answer:
             answer_elem = ET.SubElement(root, "answer")

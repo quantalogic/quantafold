@@ -22,7 +22,7 @@ class WikipediaTool(Tool):
         description="A brief description of what the tool does",
     )
 
-    parameters: List[ToolArgument] = [
+    arguments: List[ToolArgument] = [
         ToolArgument(
             name="query",
             type="string",
