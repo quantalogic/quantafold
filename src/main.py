@@ -2,11 +2,8 @@ import logging
 
 from core.agent import Agent
 from core.generative_model import GenerativeModel
-from models.shell_command import shell_command_tool
-from models.tool import Tool as ToolModel
-from models.tool import ToolArgument
-from tools.shell_command import execute_shell_command
-from tools.wikipedia import use_wikipedia
+from tools.shell_command import ShellCommandTool
+from tools.wikipedia import WikipediaTool
 
 logging.basicConfig(
     level=logging.ERROR,
@@ -21,21 +18,11 @@ def main() -> None:
     model = GenerativeModel(model=MODEL_NAME)
     agent = Agent(model=model)
 
-    wikipedia_tool = ToolModel(
-        name="SEARCH_WIKIPEDIA",
-        description="Searches Wikipedia for information based on a query.",
-        arguments=[
-            ToolArgument(
-                name="query",
-                type="string",
-                description="The search term to query on Wikipedia.",
-            )
-        ],
-    )
+    wikipedia_tool = WikipediaTool()
+    shell_command_tool = ShellCommandTool()
 
-    agent.register(wikipedia_tool, use_wikipedia)
-
-    agent.register(shell_command_tool, execute_shell_command)
+    agent.register(wikipedia_tool)
+    agent.register(shell_command_tool)
 
     print("Welcome to the AI Assistant!")
     print(

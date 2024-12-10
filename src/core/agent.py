@@ -1,15 +1,14 @@
 import logging
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa: N817
 from datetime import datetime
-from typing import Callable
 
 from core.generative_model import GenerativeModel
 from models.message import Message
 from models.responsestats import ResponseStats
-from models.tool import Tool as ToolModel
-from tools.tool import Tool
+from models.tool import Tool
 
 logger = logging.getLogger(__name__)
+
 
 class Agent:
     def __init__(self, model: GenerativeModel) -> None:
@@ -22,6 +21,7 @@ class Agent:
         self.prompt_template = self.load_template()
 
     def load_template(self) -> str:
+        # (Prompt template remains unchanged)
         return """
 You are a ReAct (Reasoning and Acting) agent tasked with answering the following query:
 
@@ -30,7 +30,6 @@ You are a ReAct (Reasoning and Acting) agent tasked with answering the following
 <query>
 {query}
 </query>
-
 
 ## Goal:
 
@@ -43,9 +42,10 @@ Current iteration: {current_iteration}
 Max iterations: {max_iterations}
 
 ## Available tools:
-<tools>
+
+Here are examples of how to use the available tools:
+
 {tools}
-</tools>
 
 ## Instructions:
 1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
@@ -72,15 +72,15 @@ Format 2 - If you have enough information to answer:
 ```xml
 <response>
     <thought>Your reasoning about why you can now answer the query</thought>
-    <answer><![CDATA[Your final answer to the query]]></answer>
+    <answer>Your final answer to the query</answer>
 </response>
 ```
 
 DO NOT include any text before or after the XML object. The response must be well-formed XML.
         """
 
-    def register(self, tool_model: ToolModel, func: Callable[[str], str]) -> None:
-        self.tools[tool_model.name.upper()] = Tool(tool_model, func)
+    def register(self, tool: Tool) -> None:
+        self.tools[tool.name.upper()] = tool
 
     def add_to_session_memory(self, role: str, content: str) -> None:
         timestamp = datetime.utcnow().isoformat()
@@ -88,7 +88,10 @@ DO NOT include any text before or after the XML object. The response must be wel
 
     def get_history(self) -> str:
         history = "\n".join(
-            [f"step{str(i + 1).zfill(4)} - {msg.role}: {msg.content}" for i, msg in enumerate(self.messages)]
+            [
+                f"step{str(i + 1).zfill(4)} - {msg.role}: {msg.content}"
+                for i, msg in enumerate(self.messages)
+            ]
         )
         xml_output = ["<history>"]
         xml_output.append(history)
@@ -100,23 +103,26 @@ DO NOT include any text before or after the XML object. The response must be wel
         if self.current_iteration > self.max_iterations:
             logger.warning("Reached maximum iterations. Stopping.")
             return
+        
+        # Collect XML examples from all tools
+        tool_examples = "\n".join([tool.get_xml_example() for tool in self.tools.values()])
+        
         prompt = self.prompt_template.format(
             query=self.query,
             history=self.get_history(),
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
-            tools=", ".join([str(tool.tool_model.name) for tool in self.tools.values()]),
+            tools=tool_examples,
         )
         print("Thinking...")
-        print("=" * 40)  # Add a separator for better visibility
+        print("=" * 40)
         print(prompt)
-        print("=" * 40)  # Add a separator for consistency
+        print("=" * 40)
         response = self.ask_llm(prompt)
         self.add_to_session_memory("assistant", f"Thought: {response.content}")
         self.decide(response.content)
 
     def decide(self, response: str) -> None:
-        """Process the response from the LLM and decide on next action."""
         try:
             parsed_response = self.extract(response)
 
@@ -159,23 +165,11 @@ DO NOT include any text before or after the XML object. The response must be wel
             error_msg = f"Error processing response: {str(e)}"
             logger.error(error_msg)
             self.add_to_session_memory("system", f"Error: {error_msg}")
-            # Continue thinking if there's an error, unless we've hit the max iterations
             if self.current_iteration < self.max_iterations:
                 self.think()
 
     def extract(self, response: str) -> ET.ElementTree:
-        """
-        Extracts and validates structured information from the response string.
-
-        Args:
-            response (str): The response string to parse
-
-        Returns:
-            ET.ElementTree: Parsed and validated XML element tree
-
-        Raises:
-            ValueError: If the response format is invalid or cannot be parsed
-        """
+        # (Extraction logic remains unchanged)
         try:
             response = response.strip()
             if response.startswith("```xml"):
@@ -184,7 +178,6 @@ DO NOT include any text before or after the XML object. The response must be wel
                 response = response[:-3]
             response = response.strip()
 
-            # Parse the XML
             root = ET.fromstring(response)
 
             if root.tag != "response":
@@ -196,7 +189,6 @@ DO NOT include any text before or after the XML object. The response must be wel
                     "Response must contain a 'thought' element with content."
                 )
 
-            # Check for either 'action' or 'answer'
             action = root.find("action")
             answer = root.find("answer")
 
@@ -235,10 +227,10 @@ DO NOT include any text before or after the XML object. The response must be wel
             logger.error(f"Unexpected error while parsing response: {str(e)}")
             raise ValueError("Failed to process the response. Please try again.") from e
 
-    def act(self, tool_name: str, query: str) -> None:
+    def act(self, tool_name: str, input_text: str) -> None:
         tool = self.tools.get(tool_name)
         if tool:
-            result = tool.use(query)
+            result = tool.execute(input_text)
             observation = f"Observation from {tool_name}: {result}"
             self.add_to_session_memory("system", f"Observation: {observation}")
             self.think()
@@ -247,15 +239,13 @@ DO NOT include any text before or after the XML object. The response must be wel
             self.think()
 
     def execute(self, query: str) -> str:
-        """Execute a query and return the final answer."""
         try:
             self.query = query
             self.current_iteration = 0
-            self.messages = []  # Reset message history for new query
+            self.messages = []
             self.add_to_session_memory("user", f"Query: {query}")
             self.think()
 
-            # Look for the most recent answer in the message history
             for msg in reversed(self.messages):
                 if msg.role == "assistant" and msg.content.startswith("Answer: "):
                     return msg.content.replace("Answer: ", "")
@@ -267,13 +257,12 @@ DO NOT include any text before or after the XML object. The response must be wel
             return f"An error occurred while processing your query: {str(e)}"
 
     def ask_llm(self, prompt: str) -> ResponseStats:
-        """Get response from the LLM model."""
         return self.model.generate(prompt)
 
-    # Additional method to generate XML response if needed
     def generate_xml_response(
         self, thought: str, action: dict = None, answer: str = None
     ) -> str:
+        # (Method remains unchanged)
         response = ET.Element("response")
         thought_elem = ET.SubElement(response, "thought")
         thought_elem.text = thought
