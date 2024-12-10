@@ -2,6 +2,10 @@ import logging
 
 from core.agent import Agent
 from core.generative_model import GenerativeModel
+from models.shell_command import shell_command_tool
+from models.tool import Tool as ToolModel
+from models.tool import ToolArgument
+from tools.shell_command import execute_shell_command
 from tools.wikipedia import use_wikipedia
 
 logging.basicConfig(
@@ -10,12 +14,28 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-MODEL_NAME= "gpt-4o-mini"
+MODEL_NAME = "gpt-4o-mini"
+
 
 def main() -> None:
     model = GenerativeModel(model=MODEL_NAME)
     agent = Agent(model=model)
-    agent.register("SEARCH_WIKIPEDIA", use_wikipedia)
+
+    wikipedia_tool = ToolModel(
+        name="SEARCH_WIKIPEDIA",
+        description="Searches Wikipedia for information based on a query.",
+        arguments=[
+            ToolArgument(
+                name="query",
+                type="string",
+                description="The search term to query on Wikipedia.",
+            )
+        ],
+    )
+
+    agent.register(wikipedia_tool, use_wikipedia)
+
+    agent.register(shell_command_tool, execute_shell_command)
 
     print("Welcome to the AI Assistant!")
     print(

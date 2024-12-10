@@ -7,8 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 class Tool:
-    def __init__(self, name: str, func: Callable[[str], str]):
-        self.name = name
+    def __init__(self, tool_model, func: Callable[[str], str]):
+        self.tool_model = tool_model
+        self.name = tool_model.name
         self.func = func
 
     def use(self, query: str) -> Observation:

@@ -1,3 +1,71 @@
+# Summary Section
+
+- Enhanced the tooling system by introducing Pydantic models for tool definitions, enabling robust XML handling and tool registration within the agent.
+- **src/models/tool.py**: Created to define Pydantic models representing tools and their arguments for structured XML representation.
+- **src/tools/tool.py**: Updated to utilize the new Pydantic Tool model for tool operations.
+- **src/core/agent.py**: Modified to register tools using Pydantic models, handle XML input/output with validation, and execute tasks using the enhanced tooling system.
+- **src/models/__init__.py**: Updated to include the newly created Tool model for seamless integration.
+- **src/main.py**: Updated tool registration process to align with the new Pydantic-based tooling system.
+
+# XML Section
+
+```xml
+<code_changes>
+  <changed_files>
+    <file>
+      <file_summary>Created Pydantic models for tools to enable structured XML representation and validation.</file_summary>
+      <file_operation>CREATE</file_operation>
+      <file_path>src/models/tool.py</file_path>
+      <file_code><![CDATA[
+from typing import List, Optional
+from pydantic import BaseModel, Field
+
+class ToolArgument(BaseModel):
+    name: str = Field(..., description="The name of the argument.")
+    type: str = Field(..., description="The type of the argument (e.g., string, integer).")
+    description: Optional[str] = Field(None, description="A brief description of the argument.")
+
+class Tool(BaseModel):
+    name: str = Field(..., description="The unique name of the tool.")
+    description: str = Field(..., description="A brief description of what the tool does.")
+    arguments: List[ToolArgument] = Field([], description="A list of arguments the tool accepts.")
+]]
+      </file_code>
+    </file>
+    <file>
+      <file_summary>Updated the Tool class to use the new Pydantic Tool model for structured operations.</file_summary>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/tools/tool.py</file_path>
+      <file_code><![CDATA[
+import logging
+from typing import Callable
+
+from models.observation import Observation
+from models.tool import Tool as ToolModel
+
+logger = logging.getLogger(__name__)
+
+class Tool:
+    def __init__(self, tool_model: ToolModel, func: Callable[[str], str]):
+        self.tool_model = tool_model
+        self.name = tool_model.name
+        self.func = func
+
+    def use(self, query: str) -> Observation:
+        try:
+            return self.func(query)
+        except Exception as e:
+            logger.error(f"Error executing tool {self.name}: {e}")
+            return str(e)
+]]
+      </file_code>
+    </file>
+    <file>
+      <file_summary>Modified the Agent class to register tools using Pydantic models, handle XML input/output, and ensure validation.</file_summary>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/core/agent.py</file_path>
+      <file_code><![CDATA[
+# src/core/agent.py
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -289,3 +357,92 @@ DO NOT include any text before or after the XML object. The response must be wel
             answer_elem = ET.SubElement(response, "answer")
             answer_elem.text = answer
         return ET.tostring(response, encoding="unicode")
+]]
+      </file_code>
+    </file>
+    <file>
+      <file_summary>Updated models/__init__.py to include the new Tool model for easy import.</file_summary>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/models/__init__.py</file_path>
+      <file_code><![CDATA[
+from .tool import Tool, ToolArgument
+
+from .observation import Observation
+from .choice import Choice
+from .responsestats import ResponseStats
+from .message import Message
+]]
+      </file_code>
+    </file>
+    <file>
+      <file_summary>Updated main.py to register tools using the new Pydantic-based tooling system.</file_summary>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/main.py</file_path>
+      <file_code><![CDATA[
+import logging
+
+from core.agent import Agent
+from core.generative_model import GenerativeModel
+from models.tool import Tool as ToolModel
+from tools.wikipedia import use_wikipedia
+
+logging.basicConfig(
+    level=logging.ERROR,
+    format="%(asctime)s - %(name)s:%(levelname)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+MODEL_NAME= "gpt-4o-mini"
+
+def main() -> None:
+    model = GenerativeModel(model=MODEL_NAME)
+    agent = Agent(model=model)
+    
+    wikipedia_tool = ToolModel(
+        name="SEARCH_WIKIPEDIA",
+        description="Searches Wikipedia for information based on a query.",
+        arguments=[
+            ToolArgument(
+                name="query",
+                type="string",
+                description="The search term to query on Wikipedia."
+            )
+        ]
+    )
+    
+    agent.register(wikipedia_tool, use_wikipedia)
+
+    print("Welcome to the AI Assistant!")
+    print(
+        "You can ask questions about any topic, and I'll search Wikipedia for information."
+    )
+    print("Type 'quit' or 'exit' to end the session.\n")
+
+    while True:
+        print("\nAsk a question:")
+        query = input().strip()
+
+        if query.lower() in ["quit", "exit"]:
+            print("Goodbye!")
+            break
+
+        if not query:
+            print("Please enter a question.")
+            continue
+
+        try:
+            response = agent.execute(query)
+            print("\nResponse:", response)
+        except Exception as e:
+            print(f"\nAn error occurred: {str(e)}")
+            print("Please try again with a different question.")
+
+
+if __name__ == "__main__":
+    main()
+]]
+      </file_code>
+    </file>
+  </changed_files>
+</code_changes>
+```
