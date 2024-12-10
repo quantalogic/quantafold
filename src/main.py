@@ -1,13 +1,14 @@
 import logging
 
-from core.agent import Agent
-from core.generative_model import GenerativeModel
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.theme import Theme
+
+from core.agent import Agent
+from core.generative_model import GenerativeModel
 from tools.file_reader import FileReaderTool
 from tools.shell_command import ShellCommandTool
 from tools.wikipedia import WikipediaTool
@@ -57,14 +58,21 @@ def main() -> None:
     agent.register(shell_command_tool)
     agent.register(FileReaderTool())
 
+    # Build tool descriptions for welcome message
+    tool_descriptions = "".join(
+        f"* {tool.name.upper()}: {tool.description.strip().split('.')[0].strip()}\n"
+        for tool in agent.tools.values()
+    )
+
     # Welcome message
-    welcome_md = """
+    welcome_md = f"""
     # 🤖 AI Assistant
 
-    Welcome to your AI Assistant! This tool can help you:
-    * Search Wikipedia for information
-    * Execute shell commands
-    * Answer your questions
+    Welcome to your AI Assistant! 
+    
+    This tool can help you with the following:
+
+    {tool_descriptions}
 
     Type 'quit' or 'exit' to end the session.
     Enter your questions in multiple lines - press Enter twice to submit.

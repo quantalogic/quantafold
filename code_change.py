@@ -18,9 +18,6 @@ def extract_code_changes_from_markdown(markdown_file):
     return match.group(1)
 
 
-
-
-
 def validate_file_block(file_block):
     """Validate the presence of required tags in a file block."""
     required_tags = {
@@ -70,7 +67,9 @@ def apply_code_changes(code_changes):
             # Perform the specified file operation
             file_operation = file_data["file_operation"]
             file_path = file_data["file_path"]
-            file_code = file_data.get("file_code", "")  # Default to empty for DELETE operations
+            file_code = file_data.get(
+                "file_code", ""
+            )  # Default to empty for DELETE operations
 
             if file_operation in ["UPDATE", "CREATE"]:
                 print(f"Creating/updating file: {file_path}")

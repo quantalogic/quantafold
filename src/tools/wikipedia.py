@@ -3,8 +3,9 @@ import time
 from typing import List
 
 import wikipedia
-from models.tool import Tool, ToolArgument
 from pydantic import Field
+
+from models.tool import Tool, ToolArgument
 
 logger = logging.getLogger(__name__)
 

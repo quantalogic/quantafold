@@ -2,8 +2,9 @@ import logging
 import subprocess
 from typing import List
 
-from models.tool import Tool, ToolArgument
 from pydantic import Field
+
+from models.tool import Tool, ToolArgument
 
 logger = logging.getLogger(__name__)
 

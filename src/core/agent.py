@@ -4,16 +4,17 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from core.generative_model import GenerativeModel
-from models.message import Message
-from models.responsestats import ResponseStats
-from models.tool import Tool
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
+
+from core.generative_model import GenerativeModel
+from models.message import Message
+from models.responsestats import ResponseStats
+from models.tool import Tool
 
 os.environ["LITELLM_LOG_LEVEL"] = "ERROR"
 logging.getLogger().setLevel(logging.ERROR)
