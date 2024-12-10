@@ -246,7 +246,10 @@ DO NOT include any text before or after the XML object. The response must be wel
                 result = tool.execute(**converted_args)
                 observation = f"Observation from {tool_name}: {result}"
                 print(f"Observation: {observation}")
-                self.add_to_session_memory("system", f"Observation: {observation}")
+                self.add_to_session_memory(
+                    "tool_execution",
+                    f"Observation: Executed tool '{tool_name}' with arguments {converted_args}. Result: {observation}",
+                )
                 self.think()
             except Exception as e:
                 error_msg = f"Error executing tool {tool_name}: {str(e)}"
