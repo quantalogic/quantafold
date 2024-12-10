@@ -1,13 +1,27 @@
 # src/react/agent.py
+# Disable all litellm logging before any imports
 import logging
+import os
 
+# Configure litellm
+import litellm
 from litellm import completion
+from models.message import Message
+from models.responsestats import ResponseStats
 
-from src.models.message import Message
-from src.models.responsestats import ResponseStats
+os.environ["LITELLM_LOG_LEVEL"] = "ERROR"
+logging.getLogger().setLevel(logging.ERROR)
+
+litellm.set_verbose = False
+
+
+# Ensure no logging propagation
+for name in logging.root.manager.loggerDict:
+    if name.startswith(("litellm", "openai", "httpx")):
+        logging.getLogger(name).setLevel(logging.ERROR)
+        logging.getLogger(name).propagate = False
 
 logger = logging.getLogger(__name__)
-
 logger.setLevel(logging.INFO)
 
 

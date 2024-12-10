@@ -1,5 +1,6 @@
 import logging
-import xml.etree.ElementTree as ET
+import os
+import xml.etree.ElementTree as ET  # noqa: N817
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -7,8 +8,45 @@ from core.generative_model import GenerativeModel
 from models.message import Message
 from models.responsestats import ResponseStats
 from models.tool import Tool
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+from rich.theme import Theme
 
+os.environ["LITELLM_LOG_LEVEL"] = "ERROR"
+logging.getLogger().setLevel(logging.ERROR)
+
+
+# Configure rich console with no logging
+console = Console(
+    theme=Theme(
+        {"info": "cyan", "warning": "yellow", "error": "red", "success": "green"}
+    )
+)
+
+# Remove all handlers from root logger
+logging.getLogger().handlers = []
+
+# Configure logging with rich, but only for our app
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[
+        RichHandler(rich_tracebacks=True, show_time=False, show_path=False, markup=True)
+    ],
+)
+
+# Set our logger to INFO while keeping others at ERROR
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Ensure no logging propagation for any existing loggers
+for name in logging.root.manager.loggerDict:
+    if name != __name__:  # Don't affect our own logger
+        logging.getLogger(name).setLevel(logging.ERROR)
+        logging.getLogger(name).propagate = False
 
 
 class Agent:
@@ -93,12 +131,48 @@ DO NOT include any text before or after the XML object. The response must be wel
         """Add a new message to the session history."""
         timestamp = datetime.utcnow().isoformat()
         self.messages.append(Message(role=role, content=content, timestamp=timestamp))
+        # Display the message with rich formatting
+        role_style = {
+            "assistant": "cyan",
+            "user": "green",
+            "tool_execution": "yellow",
+        }.get(role.lower(), "white")
+
+        console.print(
+            Panel(
+                Text(content, style="white"),
+                title=f"[{role_style}]{role.upper()}[/{role_style}]",
+                subtitle=f"[dim]{timestamp}[/dim]",
+                border_style=role_style,
+            )
+        )
 
     def get_history(self) -> str:
         """Get formatted session history."""
         history_list: list[str] = []
         current_sequence: int = 1
         current_role = ""
+
+        # Create a table for history display
+        table = Table(
+            title="Session History", show_header=True, header_style="bold magenta"
+        )
+        table.add_column("Sequence", style="dim")
+        table.add_column("Role", style="cyan")
+        table.add_column("Content", style="white", overflow="fold")
+
+        for msg in self.messages:
+            current_role = msg.role.upper()
+            if current_role == "TOOL_EXECUTION":
+                current_sequence += 1
+
+            table.add_row(
+                str(current_sequence), Text(current_role, style="bold"), msg.content
+            )
+
+        console.print(table)
+
+        # Still maintain the string version for the model
         history_list.append(
             f"------------------------- SEQUENCE: {current_sequence} -------------------------"
         )
@@ -111,18 +185,25 @@ DO NOT include any text before or after the XML object. The response must be wel
                     f"------------------------- SEQUENCE: {current_sequence} -------------------------"
                 )
 
-        history = "\n".join(history_list)
-
-        print("History:")
-        print(history)
-        return str(history)
+        return "\n".join(history_list)
 
     def think(self) -> None:
         """Execute the thinking step of the agent."""
         self.current_iteration += 1
         if self.current_iteration > self.max_iterations:
-            logger.warning("Reached maximum iterations. Stopping.")
+            console.print("[warning]Reached maximum iterations. Stopping.[/warning]")
             return
+
+        # Display current status
+        status_panel = Panel(
+            f"""[bold]Current Status[/bold]
+Iteration: {self.current_iteration}/{self.max_iterations}
+Active Tools: {len(self.tools)}
+Messages in History: {len(self.messages)}""",
+            title="Agent Status",
+            border_style="blue",
+        )
+        console.print(status_panel)
 
         # Collect XML examples from all tools
         tool_examples = "\n".join([tool.to_json() for tool in self.tools.values()])
@@ -174,6 +255,7 @@ DO NOT include any text before or after the XML object. The response must be wel
                     )
 
                 if tool_name.text.upper() not in self.tools:
+                    console.print(f"[error]Unknown tool name: {tool_name.text}[/error]")
                     raise ValueError(f"Unknown tool name: {tool_name.text}")
 
             elif answer is not None:
@@ -188,14 +270,19 @@ DO NOT include any text before or after the XML object. The response must be wel
 
         except ET.ParseError as e:
             clean_response = response.replace("\n", "\\n")
-            logger.error(f"Invalid XML format in response: {clean_response}")
+            console.print("[error]Invalid XML format in response[/error]")
+            console.print(
+                Panel(clean_response, title="Invalid Response", border_style="red")
+            )
             logger.error(f"XML parse error: {str(e)}")
             raise ValueError("Response is not valid XML. Please try again.") from e
         except ValueError as e:
-            logger.error(f"Validation error: {str(e)}")
+            console.print(f"[error]Validation error: {str(e)}[/error]")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error while parsing response: {str(e)}")
+            console.print(
+                f"[error]Unexpected error while parsing response: {str(e)}[/error]"
+            )
             raise ValueError("Failed to process the response. Please try again.") from e
 
     def decide(self, response: str) -> None:
@@ -229,8 +316,6 @@ DO NOT include any text before or after the XML object. The response must be wel
                         ):
                             args[name.text] = value.text
 
-                print(f"Tool: {tool_name_str}")
-                print(f"Arguments: {args}")
                 self.act(tool_name_str, args)
 
             elif parsed_response.find("answer") is not None:
@@ -238,7 +323,6 @@ DO NOT include any text before or after the XML object. The response must be wel
                 if answer is None or not answer.text:
                     raise ValueError("Answer element is empty")
 
-                print("Answering directly\n")
                 answer_text = answer.text.strip()
                 self.add_to_session_memory("assistant", f"{answer_text}")
 
@@ -249,6 +333,7 @@ DO NOT include any text before or after the XML object. The response must be wel
 
         except Exception as e:
             error_msg = f"Error processing response: {str(e)}"
+            console.print(f"[error]{error_msg}[/error]")
             logger.error(error_msg)
             self.add_to_session_memory("system", f"Error: {error_msg}")
             if self.current_iteration < self.max_iterations:
@@ -264,7 +349,6 @@ DO NOT include any text before or after the XML object. The response must be wel
                 # Execute tool with converted arguments
                 result = tool.execute(**converted_args)
                 observation = f"Observation from {tool_name}: {result}"
-                print(f"Observation: {observation}")
                 self.add_to_session_memory(
                     "tool_execution",
                     f"Executed tool :\n'{tool_name}' with arguments:\n{converted_args}.\nResult:\n{observation}\n",
@@ -272,6 +356,7 @@ DO NOT include any text before or after the XML object. The response must be wel
                 self.think()
             except Exception as e:
                 error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                console.print(f"[error]{error_msg}[/error]")
                 logger.error(error_msg)
                 self.add_to_session_memory("system", f"Error: {error_msg}")
                 self.think()

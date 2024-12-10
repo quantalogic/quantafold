@@ -63,7 +63,7 @@ class WikipediaTool(Tool):
             if len(summary.split(".")) > max_lines:
                 summary = ". ".join(summary.split(".")[:max_lines]) + "."
 
-            logger.info(f"Fetched summary for query '{query}'")
+            logger.debug(f"Fetched summary for query '{query}'")
             return summary
 
         except wikipedia.exceptions.DisambiguationError as e:
