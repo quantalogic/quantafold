@@ -9,6 +9,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.theme import Theme
 from tools.file_reader import FileReaderTool
+from tools.file_writer import FileWriterTool
 from tools.shell_command import ShellCommandTool
 from tools.wikipedia import WikipediaTool
 
@@ -50,12 +51,10 @@ def main() -> None:
     model = GenerativeModel(model=MODEL_NAME)
     agent = Agent(model=model)
 
-    wikipedia_tool = WikipediaTool()
-    shell_command_tool = ShellCommandTool()
-
-    agent.register(wikipedia_tool)
-    agent.register(shell_command_tool)
+    agent.register(WikipediaTool())
+    agent.register(ShellCommandTool())
     agent.register(FileReaderTool())
+    agent.register(FileWriterTool())
 
     # Build tool descriptions for welcome message
     tool_descriptions = "".join(
