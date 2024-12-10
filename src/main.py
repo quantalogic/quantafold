@@ -8,6 +8,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.theme import Theme
+from tools.file_reader import FileReaderTool
 from tools.shell_command import ShellCommandTool
 from tools.wikipedia import WikipediaTool
 
@@ -54,6 +55,7 @@ def main() -> None:
 
     agent.register(wikipedia_tool)
     agent.register(shell_command_tool)
+    agent.register(FileReaderTool())
 
     # Welcome message
     welcome_md = """
@@ -81,8 +83,8 @@ def main() -> None:
                 console.print("[warning]⚠️  Please enter a question.[/]")
                 continue
 
-            with console.status("[bold cyan]Thinking...[/]", spinner="dots"):
-                response = agent.execute(query)
+            console.print("[bold cyan]Thinking...[/]")
+            response = agent.execute(query)
 
             # Format the response as a panel with markdown
             console.print(
