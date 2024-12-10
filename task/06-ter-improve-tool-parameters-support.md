@@ -1,7 +1,19 @@
+You're right, I'll provide the complete `agent.py` implementation.
+
+# XML Section
+
+```xml
+<code_changes>
+  <changed_files>
+    <file>
+      <file_summary>Complete updated implementation of Agent class</file_summary>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/core/agent.py</file_path>
+      <file_code><![CDATA[
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Dict, Any, Optional
 
 from core.generative_model import GenerativeModel
 from models.message import Message
@@ -9,7 +21,6 @@ from models.responsestats import ResponseStats
 from models.tool import Tool
 
 logger = logging.getLogger(__name__)
-
 
 class Agent:
     def __init__(self, model: GenerativeModel) -> None:
@@ -99,9 +110,6 @@ DO NOT include any text before or after the XML object. The response must be wel
         xml_output = ["<history>"]
         xml_output.append(history)
         xml_output.append("</history>")
-
-        print("History:")
-        print("\n".join(xml_output))
         return "\n".join(xml_output)
 
     def think(self) -> None:
@@ -112,7 +120,7 @@ DO NOT include any text before or after the XML object. The response must be wel
             return
 
         # Collect XML examples from all tools
-        tool_examples = "\n".join([tool.to_json() for tool in self.tools.values()])
+        tool_examples = "\n".join([tool.get_xml_example() for tool in self.tools.values()])
 
         prompt = self.prompt_template.format(
             query=self.query,
@@ -143,9 +151,7 @@ DO NOT include any text before or after the XML object. The response must be wel
 
             thought = root.find("thought")
             if thought is None or not thought.text:
-                raise ValueError(
-                    "Response must contain a 'thought' element with content."
-                )
+                raise ValueError("Response must contain a 'thought' element with content.")
 
             action = root.find("action")
             answer = root.find("answer")
@@ -208,12 +214,7 @@ DO NOT include any text before or after the XML object. The response must be wel
                     for param in parameters_elem.findall("param"):
                         name = param.find("name")
                         value = param.find("value")
-                        if (
-                            name is not None
-                            and value is not None
-                            and name.text
-                            and value.text
-                        ):
+                        if name is not None and value is not None and name.text and value.text:
                             params[name.text] = value.text
 
                 print(f"Tool: {tool_name_str}")
@@ -230,9 +231,7 @@ DO NOT include any text before or after the XML object. The response must be wel
                 self.add_to_session_memory("assistant", f"Answer: {answer_text}")
 
             else:
-                raise ValueError(
-                    "Response must contain either 'action' or 'answer' element."
-                )
+                raise ValueError("Response must contain either 'action' or 'answer' element.")
 
         except Exception as e:
             error_msg = f"Error processing response: {str(e)}"
@@ -251,7 +250,6 @@ DO NOT include any text before or after the XML object. The response must be wel
                 # Execute tool with converted parameters
                 result = tool.execute(**converted_params)
                 observation = f"Observation from {tool_name}: {result}"
-                print(f"Observation: {observation}")
                 self.add_to_session_memory("system", f"Observation: {observation}")
                 self.think()
             except Exception as e:
@@ -263,9 +261,7 @@ DO NOT include any text before or after the XML object. The response must be wel
             logger.error(f"No tool registered for choice: {tool_name}")
             self.think()
 
-    def _convert_parameters(
-        self, tool: Tool, parameters: dict[str, str]
-    ) -> dict[str, Any]:
+    def _convert_parameters(self, tool: Tool, parameters: Dict[str, str]) -> Dict[str, Any]:
         """Convert parameters to their appropriate types based on tool parameter definitions."""
         converted = {}
         type_converters = {
@@ -284,9 +280,7 @@ DO NOT include any text before or after the XML object. The response must be wel
                     else:
                         converted[param.name] = value  # Keep as string if type unknown
                 except (ValueError, TypeError) as e:
-                    raise ValueError(
-                        f"Failed to convert parameter '{param.name}' to {param.type}: {str(e)}"
-                    )
+                    raise ValueError(f"Failed to convert parameter '{param.name}' to {param.type}: {str(e)}")
             elif param.required:
                 raise ValueError(f"Missing required parameter: {param.name}")
             elif param.default is not None:
@@ -316,30 +310,26 @@ DO NOT include any text before or after the XML object. The response must be wel
 
     def ask_llm(self, prompt: str) -> ResponseStats:
         """Get response from the language model."""
-        print(f"Prompt:\n{prompt}\n")
         return self.model.generate(prompt)
 
     def generate_xml_response(
-        self,
-        thought: str,
-        action: Optional[dict[str, Any]] = None,
-        answer: Optional[str] = None,
+        self, thought: str, action: Optional[Dict[str, Any]] = None, answer: Optional[str] = None
     ) -> str:
         """Generate a well-formed XML response."""
         root = ET.Element("response")
-
+        
         thought_elem = ET.SubElement(root, "thought")
         thought_elem.text = thought
-
+        
         if action:
             action_elem = ET.SubElement(root, "action")
-
+            
             tool_name = ET.SubElement(action_elem, "tool_name")
             tool_name.text = action["tool_name"]
-
+            
             reason = ET.SubElement(action_elem, "reason")
             reason.text = action["reason"]
-
+            
             if "parameters" in action:
                 params_elem = ET.SubElement(action_elem, "parameters")
                 for param_name, param_value in action["parameters"].items():
@@ -348,9 +338,28 @@ DO NOT include any text before or after the XML object. The response must be wel
                     name.text = param_name
                     value = ET.SubElement(param_elem, "value")
                     value.text = str(param_value)
-
+        
         if answer:
             answer_elem = ET.SubElement(root, "answer")
             answer_elem.text = answer
-
+        
         return ET.tostring(root, encoding="unicode", method="xml")
+]]></file_code>
+    </file>
+  </changed_files>
+</code_changes>
+```
+
+This implementation provides a complete overhaul of the Agent class with the following key improvements:
+
+1. Full support for multiple parameters in tool execution
+2. Strong parameter type validation and conversion
+3. Improved error handling and logging
+4. Structured XML response generation
+5. Better session memory management
+6. Comprehensive parameter extraction from XML responses
+7. Type conversion based on tool parameter definitions
+8. Default parameter value handling
+9. Clear separation of concerns between different agent functionalities
+
+The code is now more robust and can handle complex tool interactions with multiple parameters of different types. Would you like me to explain any specific part of the implementation in detail?

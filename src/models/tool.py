@@ -1,12 +1,12 @@
-from typing import Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class ToolArgument(BaseModel):
     name: str = Field(..., description="The name of the argument.")
-    type: str = Field(
-        ..., description="The type of the argument (e.g., string, integer)."
+    type: Literal["string", "int"] = Field(
+        ..., description="The type of the argument (e.g., string or integer)."
     )
     description: Optional[str] = Field(
         None, description="A brief description of the argument."
@@ -14,39 +14,32 @@ class ToolArgument(BaseModel):
 
 
 class Tool(BaseModel):
+    model_config = {"extra": "forbid"}  # Disallow extra fields
     name: str = Field(..., description="The unique name of the tool.")
     description: str = Field(
         ..., description="A brief description of what the tool does."
     )
-    arguments: list[ToolArgument] = Field(
-        [], description="A list of arguments the tool accepts."
+    arguments: List[ToolArgument] = Field(
+        default_factory=list, description="A list of arguments the tool accepts."
     )
     need_validation: bool = Field(
         False, description="Indicates if the tool needs validation."
     )
 
+    @validator("arguments", each_item=True)
+    def validate_arguments(cls, arg):
+        if not isinstance(arg, ToolArgument):
+            raise ValueError("All items in arguments must be instances of ToolArgument")
+        return arg
+
     def execute(self, **kwargs) -> str:
-        """Execute the tool with the provided arguments."""
+        """Execute the tool with provided arguments."""
         raise NotImplementedError("This method should be implemented by subclasses.")
 
-    def get_xml_example(self) -> str:
-        """Generate an XML example for the tool."""
-        # Start with the tool description as XML comment
-        xml = f"<!-- {self.description} -->\n"
+    def to_json(self) -> str:
+        """Convert the tool to a JSON string representation.
 
-        # Add the tool name tag
-        xml += f"<{self.name}>\n"
-
-        # Add parameters as direct tags
-        for arg in self.arguments:
-            xml += f"  <{arg.name}>"
-            if arg.description:
-                xml += f"{arg.description}"
-            else:
-                xml += f"Example {arg.type} value"
-            xml += f"</{arg.name}>\n"
-
-        # Close the tool tag
-        xml += f"</{self.name}>"
-
-        return xml
+        Returns:
+            str: A JSON string representing the tool
+        """
+        return self.model_dump_json()
