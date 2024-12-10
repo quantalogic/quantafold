@@ -33,7 +33,9 @@ You are a ReAct (Reasoning and Acting) agent tasked with answering the following
 Your goal is to reason about the query and decide on the best course of action to answer it accurately.
 
 ## Session History:
+<history>
 {history}
+</history>
 
 Current iteration: {current_iteration}
 Max iterations: {max_iterations}
@@ -42,7 +44,9 @@ Max iterations: {max_iterations}
 
 Here are examples of how to use the available tools:
 
+<available_tools>
 {tools}
+</available_tools>
 
 ## Instructions:
 1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
@@ -90,19 +94,9 @@ DO NOT include any text before or after the XML object. The response must be wel
 
     def get_history(self) -> str:
         """Get formatted session history."""
-        history = "\n".join(
-            [
-                f"step{str(i + 1).zfill(4)} - {msg.role}: {msg.content}"
-                for i, msg in enumerate(self.messages)
-            ]
-        )
-        xml_output = ["<history>"]
-        xml_output.append(history)
-        xml_output.append("</history>")
-
+        history = [msg.model_dump() for msg in self.messages]
         print("History:")
-        print("\n".join(xml_output))
-        return "\n".join(xml_output)
+        return str(history)  # Return the formatted history
 
     def think(self) -> None:
         """Execute the thinking step of the agent."""
