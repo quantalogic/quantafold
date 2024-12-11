@@ -41,7 +41,7 @@ class ShellCommandTool(Tool):
         True, description="Indicates if the tool needs validation."
     )
 
-    def execute(self, command: str, timeout: int = 30) -> str:
+    def execute(self, command: str, timeout: str = "60") -> str:
         """Execute a shell command and return its output."""
         if not command.strip():
             logger.error("Command cannot be empty or whitespace.")
@@ -54,7 +54,7 @@ class ShellCommandTool(Tool):
                 check=True,
                 capture_output=True,
                 text=True,
-                timeout=timeout,
+                timeout=int(timeout),
             )
             logger.info(f"Executed command successfully: {command}")
             return result.stdout.strip()
