@@ -34,12 +34,12 @@ logging.basicConfig(
     handlers=[RichHandler(rich_tracebacks=True)],
 )
 
-MODEL_NAME = "gpt-4o-mini"
+# MODEL_NAME = "gpt-4o-mini"
 # MODEL_NAME = "ollama/qwen2.5-coder:14b"
 # MODEL_NAME = "ollama/exaone3.5:2.4b"
 # MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
 #MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
-#MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
+MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
 
 
 

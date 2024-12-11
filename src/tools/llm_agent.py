@@ -31,7 +31,18 @@ class LLMAgentTool(Tool):
             ToolArgument(
                 name="prompt",
                 type="string",
-                description="The prompt to send to the LLM Agent.",
+                description="""
+                The prompt to send to the LLM Agent. It must include
+                all necessary information for the LLM Agent to generate
+                a response, as this Agent does not have access to the
+                full context of the conversation.
+                """
+            ),
+            ToolArgument(
+                name="context",
+                type="string",
+                description="You must include the full context of the conversation related to the prompt.",
+                default="",
             ),
             ToolArgument(
                 name="temperature",
@@ -52,7 +63,7 @@ class LLMAgentTool(Tool):
         # Store the model as an instance attribute
         self._model = model
 
-    def execute(self, persona: str, prompt: str, temperature: str = "0.7") -> str:
+    def execute(self, persona: str, prompt: str, context: str = "", temperature: str = "0.7") -> str:
         """Generate a response using the LLM Agent with specified persona."""
         if not prompt.strip():
             logger.error("Prompt cannot be empty or whitespace.")
@@ -76,7 +87,8 @@ class LLMAgentTool(Tool):
             self._model.role = persona
 
             # Generate response
-            response = self._model.generate(prompt)
+            full_prompt = f"Context: {context}\nQuery: {prompt}"
+            response = self._model.generate(full_prompt)
 
             logger.info("Successfully generated response for prompt with persona")
             return response.content
