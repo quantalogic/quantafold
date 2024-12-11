@@ -10,6 +10,7 @@ from rich.prompt import Prompt
 from rich.theme import Theme
 from tools.display_content import DisplayContentTool
 from tools.file_reader import FileReaderTool
+from tools.file_tree import FileTreeTool
 from tools.file_writer import FileWriterTool
 from tools.llm_agent import LLMAgentTool
 from tools.shell_command import ShellCommandTool
@@ -34,11 +35,11 @@ logging.basicConfig(
     handlers=[RichHandler(rich_tracebacks=True)],
 )
 
-# MODEL_NAME = "gpt-4o-mini"
+MODEL_NAME = "gpt-4o-mini"
 # MODEL_NAME = "ollama/qwen2.5-coder:14b"
 # MODEL_NAME = "ollama/exaone3.5:2.4b"
-MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
-#MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
+#MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
+# MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
 # MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
 
 
@@ -78,6 +79,7 @@ def main() -> None:
     agent.register(llm_agent_tool)
     agent.register(WikipediaTool())
     agent.register(DisplayContentTool())
+    agent.register(FileTreeTool())
 
     # Build tool descriptions for welcome message
     tool_descriptions = "".join(

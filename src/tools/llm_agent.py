@@ -17,7 +17,13 @@ class LLMAgentError(Exception):
 class LLMAgentTool(Tool):
     name: str = Field("LLM_AGENT", description="An LLM Agent tool.")
     description: str = Field(
-        "Generate AI responses using a specified persona and prompt.",
+        """
+        Generate AI responses using a specified persona, prompt and context.
+        As the LLM Agent does not have access to the full context of the conversation,
+        You MUST include the full context of the conversation related to the prompt
+        in the context argument.
+        context is MANDATORY.
+        """,
         description="A brief description of what the tool does.",
     )
 

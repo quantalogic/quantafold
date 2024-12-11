@@ -83,7 +83,7 @@ VERY IMPORTANT: ONLY USE THIS IF THE GOAL IS FULLY COMPLETED:
 <response>
     <!-- use CDATA to handle special characters in thought and answer -->
     <thought><![CDATA[Your reasoning about why you can now answer the query]]></thought>
-    <answer><![CDATA[Your final answer to the query]]></answer>
+    <answer><![CDATA[Your final answer to the query, prefer Markdown format if the format is not defined in the query]]></answer>
 </response>
 ```
 

@@ -1,42 +1,21 @@
-# AI Super Agent
 
-A Python project implementing an AI Super Agent with modern tooling and best practices.
+# Project Title
 
-## Setup
+## Overview
+This project implements an AI assistant that can help users with various tasks, utilizing advanced logging and user input features.
 
-This project uses Poetry for dependency management. To get started:
+## Features
+- AI-driven responses.
+- Multiline user input handling.
+- Logging for tracking and debugging.
 
-1. Install Poetry if you haven't already:
+## Usage
+Run the main.py file to start the AI assistant. Follow the prompts to interact with the assistant.
+
+## Installation
+Ensure you have the necessary dependencies installed. Use pip to install the required packages.
+
 ```bash
-curl -sSL https://install.python-poetry.org | python3 -
+pip install -r requirements.txt
 ```
-
-2. Install dependencies:
-```bash
-poetry install
-```
-
-3. Activate the virtual environment:
-```bash
-poetry shell
-```
-
-## Development
-
-- Run tests: `pytest`
-- Format code: `ruff format .`
-- Sort imports: `isort .`
-- Lint code: `ruff check .`
-
-## Project Structure
-
-```
-├── src/
-│   ├── __init__.py
-│   └── main.py
-├── tests/
-│   ├── __init__.py
-│   └── test_main.py
-├── pyproject.toml
-└── README.md
-```
+                

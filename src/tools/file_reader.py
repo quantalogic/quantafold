@@ -38,7 +38,7 @@ class FileReaderTool(Tool):
     )
 
     need_validation: bool = Field(
-        True, description="Indicates if the tool needs validation."
+        False, description="Indicates if the tool needs validation."
     )
 
     def execute(self, file_path: str, encoding: str = "utf-8") -> str:
