@@ -31,7 +31,7 @@ class GenerativeModel:
         role: str = "You are a helpful assistant.",
         model: str = "ollama/qwen2.5-coder:14b",
         temperature: float = 0.7,
-        max_tokens: int = 4096,
+        max_tokens: int = 5120,
     ) -> None:
         self.role = role
         self.model = model

@@ -37,10 +37,9 @@ logging.basicConfig(
 # MODEL_NAME = "gpt-4o-mini"
 # MODEL_NAME = "ollama/qwen2.5-coder:14b"
 # MODEL_NAME = "ollama/exaone3.5:2.4b"
-# MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
+MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
 #MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
-MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
-
+# MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
 
 
 def get_multiline_input() -> str:
@@ -58,7 +57,9 @@ def get_multiline_input() -> str:
             if line:  # Add non-empty lines
                 lines.append(line)
         except UnicodeEncodeError:
-            console.print("[error]Error: Invalid characters in input. Please try again.[/error]")
+            console.print(
+                "[error]Error: Invalid characters in input. Please try again.[/error]"
+            )
             continue
     return "\n".join(lines)
 
@@ -69,12 +70,13 @@ def main() -> None:
 
     llm_agent_tool = LLMAgentTool(model=model)
 
-#    agent.register(WikipediaTool())
+    #    agent.register(WikipediaTool())
     agent.register(ShellCommandTool())
     agent.register(FileReaderTool())
     agent.register(FileWriterTool())
     agent.register(UserInputTool())
     agent.register(llm_agent_tool)
+    agent.register(WikipediaTool())
     agent.register(DisplayContentTool())
 
     # Build tool descriptions for welcome message

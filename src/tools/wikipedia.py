@@ -18,15 +18,17 @@ class WikipediaAPIError(Exception):
 class WikipediaTool(Tool):
     name: str = Field("SEARCH_WIKIPEDIA", description="A Wikipedia search tool, can used to fetch summaries of Wikipedia articles.")
     description: str = Field(
-        "Search Wikipedia for a given query and return a summary, prefer on concept by query.",
-        description="A brief description of what the tool does",
+        """Search Wikipedia for a given query and return a summary.
+        It must be used when you assess you don't have enough context to answer the question.
+        Only use one keyword by query.
+        """,
     )
 
     arguments: List[ToolArgument] = [
         ToolArgument(
             name="query",
             type="string",
-            description="The search term to query on Wikipedia, prefer simple concept.",
+            description="The search term to query on Wikipedia, prefer simple concept. One keyword by query.",
         ),
         ToolArgument(
             name="lang",
@@ -37,12 +39,12 @@ class WikipediaTool(Tool):
         ToolArgument(
             name="max_lines",
             type="int",
-            description="Maximum number of lines to return",
-            default="3",
+            description="Maximum number of lines to return, at least 100",
+            default="100",
         ),
     ]
 
-    def execute(self, query: str, lang: str = "en", max_lines: int = 3) -> str:
+    def execute(self, query: str, lang: str = "en", max_lines: str = "200") -> str:
         """Fetch summary from Wikipedia in a specified language."""
         if not query.strip():
             logger.error("Query cannot be empty or whitespace.")
@@ -60,8 +62,10 @@ class WikipediaTool(Tool):
             page = wikipedia.page(search_results[0], auto_suggest=False)
 
             summary = page.summary
-            if len(summary.split(".")) > max_lines:
-                summary = ". ".join(summary.split(".")[:max_lines]) + "."
+            if len(summary.split(".")) > int(max_lines):
+                first_n_lines = ". ".join(summary.split(".")[:int(max_lines)]) + "."
+                remaining_lines_count = len(summary.split(".")) - int(max_lines)
+                summary = f"{first_n_lines}\n\nNote: This is the first {max_lines} lines of the article. There are {remaining_lines_count} remaining lines."
 
             logger.debug(f"Fetched summary for query '{query}'")
             return summary
