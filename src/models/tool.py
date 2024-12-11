@@ -11,6 +11,12 @@ class ToolArgument(BaseModel):
     description: Optional[str] = Field(
         None, description="A brief description of the argument."
     )
+    required: bool = Field(
+        False, description="Indicates if the argument is required."
+    )
+    default: Optional[str] = Field(
+        None, description="The default value for the argument."
+    )
 
 
 class Tool(BaseModel):

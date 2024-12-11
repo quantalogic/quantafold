@@ -32,7 +32,7 @@ class ShellCommandTool(Tool):
                 name="timeout",
                 type="int",
                 description="Timeout for command execution in seconds.",
-                default=30,
+                default="30",
             ),
         ]
     )

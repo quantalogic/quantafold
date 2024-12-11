@@ -38,7 +38,7 @@ class WikipediaTool(Tool):
             name="max_lines",
             type="int",
             description="Maximum number of lines to return",
-            default=3,
+            default="3",
         ),
     ]
 
