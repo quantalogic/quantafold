@@ -33,8 +33,9 @@ logging.basicConfig(
 )
 
 #MODEL_NAME = "gpt-4o-mini"
-MODEL_NAME = "ollama/qwen2.5-coder:14b"
+# MODEL_NAME = "ollama/qwen2.5-coder:14b"
 # MODEL_NAME = "ollama/exaone3.5:2.4b"
+MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
 
 
 def get_multiline_input() -> str:
@@ -42,11 +43,18 @@ def get_multiline_input() -> str:
     console.print("[info]Enter your question (press Enter twice to submit):[/]")
     lines = []
     while True:
-        line = Prompt.ask("", show_default=False).rstrip()
-        if not line and lines:  # Empty line and we have content
-            break
-        if line:  # Add non-empty lines
-            lines.append(line)
+        try:
+            line = Prompt.ask("", show_default=False)
+            if line is None:  # Handle potential None return
+                break
+            line = line.rstrip()
+            if not line and lines:  # Empty line and we have content
+                break
+            if line:  # Add non-empty lines
+                lines.append(line)
+        except UnicodeEncodeError:
+            console.print("[error]Error: Invalid characters in input. Please try again.[/error]")
+            continue
     return "\n".join(lines)
 
 

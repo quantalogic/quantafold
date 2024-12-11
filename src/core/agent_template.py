@@ -2,19 +2,17 @@
 
 def load_template() -> str:
     return """
-You are a ReAct (Reasoning and Acting) agent tasked with answering the following query:
 
-## Query to solve:
+# Goal to achieve:
+
+You are a ReAct (Reasoning and Acting) agent tasked to achieve the following <query>:
 
 <query><![CDATA[
 {query}
 ]]></query>
 
-## Goal:
-
-Your goal is to reason about the query and decide on the best course of action to answer it accurately.
-
 ## Session History:
+
 <history><![CDATA[
 {history}
 ]]></history>
