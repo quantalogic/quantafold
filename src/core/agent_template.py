@@ -61,12 +61,17 @@ Format 1 - If you need to use a tool:
 
     - [ ] Proceed to complete task Z, outlining any prerequisites needed for execution.
 
-    ]]></thought>
+    ]]>
+    </thought>
+    <!-- action is mandatory -->
     <action>
         <tool_name>EXACT_TOOL_NAME</tool_name>
         <!-- use CDATA to handle special characters in reason and arguments -->
+        <!-- reason is mandatory -->
         <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
+        <!-- aguments is mandatory -->
         <arguments>
+            <!-- arg is mandatory an must have name and value, multiple args are allowed -->
             <arg>
                 <name>argument_name</name>
                 <value><![CDATA[argument_value]]></value>

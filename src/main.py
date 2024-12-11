@@ -2,6 +2,7 @@ import locale
 import logging
 import sys
 
+import litellm
 from core.agent import Agent  # noqa: E402
 from core.generative_model import GenerativeModel
 from rich.console import Console
@@ -43,11 +44,21 @@ logging.basicConfig(
 )
 
 # MODEL_NAME = "gpt-4o-mini"
-# MODEL_NAME = "ollama/qwen2.5-coder:14b"
+#MODEL_NAME = "ollama/qwen2.5-coder:14b"
 # MODEL_NAME = "ollama/exaone3.5:2.4b"
+# MODEL_NAME = "ollama/exaone3.5:latest"
+# MODEL_NAME = "ollama/llama3.1:latest"
+# MODEL_NAME = "ollama/mistral-nemo"
 #MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
-MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
+#MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
 #MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
+#MODEL_NAME = "lm_studio/llama-3.3-70b-instruct"
+#MODEL_NAME = "lm_studio/qwen2.5-coder-14b-instruct-mlx"
+MODEL_NAME = "lm_studio/qwen2-7b-instruct"
+
+
+litellm.set_verbose=False
+
 
 
 def get_multiline_input() -> str:

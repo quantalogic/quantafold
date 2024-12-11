@@ -22,6 +22,8 @@ class LLMAgentTool(Tool):
         Note that the LLM Agent operates without prior conversation memory;
         therefore, it is essential to include all relevant information in the context parameter,
         as it is a mandatory requirement. The context must be up to 20000 tokens in length.
+        YOU MUST BE SURE TO INCLUDE ALL RELEVANT INFORMATION IN THE context PARAMETER.
+        IT IS A MANDATORY REQUIREMENT.
         """,
         description="A brief description of what the tool does.",
     )
