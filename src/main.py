@@ -32,8 +32,8 @@ logging.basicConfig(
     handlers=[RichHandler(rich_tracebacks=True)],
 )
 
-MODEL_NAME = "gpt-4o-mini"
-# MODEL_NAME = "ollama/qwen2.5-coder:14b"
+#MODEL_NAME = "gpt-4o-mini"
+MODEL_NAME = "ollama/qwen2.5-coder:14b"
 # MODEL_NAME = "ollama/exaone3.5:2.4b"
 
 
@@ -68,16 +68,16 @@ def main() -> None:
 
     # Welcome message
     welcome_md = f"""
-    # 🤖 AI Assistant
+# 🤖 AI Assistant
 
-    Welcome to your AI Assistant! 
-    
-    This tool can help you with the following:
+Welcome to your AI Assistant!
 
-    {tool_descriptions}
+This tool can help you with the following:
 
-    Type 'quit' or 'exit' to end the session.
-    Enter your questions in multiple lines - press Enter twice to submit.
+{tool_descriptions}
+
+Type 'quit' or 'exit' to end the session.
+Enter your questions in multiple lines - press Enter twice to submit.
     """
     console.print(Panel(Markdown(welcome_md), border_style="cyan"))
 
