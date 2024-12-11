@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from core.agent_template import load_template
 from core.generative_model import GenerativeModel
 from models.message import Message
 from models.responsestats import ResponseStats
@@ -57,93 +58,7 @@ class Agent:
         self.query = ""
         self.max_iterations = 20
         self.current_iteration = 0
-        self.prompt_template = """
-You are a ReAct (Reasoning and Acting) agent tasked with answering the following query:
-
-## Query to solve:
-
-<query><![CDATA[
-{query}
-]]></query>
-
-## Goal:
-
-Your goal is to reason about the query and decide on the best course of action to answer it accurately.
-
-## Session History:
-<history><![CDATA[
-{history}
-]]></history>
-
-- Current iteration: {current_iteration}
-- Max iterations: {max_iterations}
-- You have {remaining_iterations} iterations left.
-
-## Available tools:
-
-Here are examples of how to use the available tools:
-
-<available_tools>
-<![CDATA[
-{tools}
-]]>
-</available_tools>
-
-## Instructions:
-1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
-2. Decide on the next action: use a tool or provide a final answer. 
-3. You must answer in less than {max_iterations} iterations.
-4. You MUST respond with ONLY a valid XML object in one of these two formats:
-
-Format 1 - If you need to use a tool:
-```xml
-<response>
-    <thought><![CDATA[
-    
-    ... Your detailed reasoning about the next steps to achieve the goal ...
-
-    ## Planned Action Steps:
-
-    - [ ] Identify and clarify the specific task X that needs to be addressed.
-    - [ ] Execute task Y, ensuring all necessary resources and information are gathered.
-
-    ## Completed Actions:
-
-    ... List all actions that have been successfully completed, along with their outcomes and any significant insights gained ...
-
-    ## Cancelled Actions:
-
-    ... Document any actions that were abandoned, including the rationale behind the decision ...
-
-    ## Upcoming Action:
-
-    - [ ] Proceed to complete task Z, outlining any prerequisites needed for execution.
-    
-    ]]></thought>
-    <action>
-        <tool_name>EXACT_TOOL_NAME</tool_name>
-        <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
-        <arguments>
-            <arg>
-                <name>argument_name</name>
-                <value><![CDATA[argument_value]]></value>
-            </arg>
-            <!-- Additional arguments as needed -->
-        </arguments>
-    </action>
-</response>
-```
-
-Format 2 - If you have enough information to answer and all the steps are completed:
-```xml
-<response>
-    <thought><![CDATA[Your reasoning about why you can now answer the query]]></thought>
-    <answer><![CDATA[Your final answer to the query]]></answer>
-</response>
-```
-
-DO NOT include any text before or after the XML object. The response must be well-formed XML.
-"""
+        self.prompt_template = load_template()
 
     def register(self, tool: Tool) -> None:
         """Register a new tool with the agent."""
