@@ -77,7 +77,8 @@ Format 1 - If you need to use a tool:
 </response>
 ```
 
-Format 2 - If you have enough information to answer and all the steps are completed:
+Format 2 - If you have enough information to answer and all the steps are completed,
+VERY IMPORTANT: ONLY USE THIS IF THE GOAL IS FULLY COMPLETED:
 ```xml
 <response>
     <!-- use CDATA to handle special characters in thought and answer -->
