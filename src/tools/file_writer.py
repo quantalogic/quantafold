@@ -27,11 +27,13 @@ class FileWriterTool(Tool):
                 name="file_path",
                 type="string",
                 description="The path to the file to write.",
+                required=True,
             ),
             ToolArgument(
                 name="content",
                 type="string",
                 description="The content to write to the file.",
+                required=True,
             ),
             ToolArgument(
                 name="encoding",

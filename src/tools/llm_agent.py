@@ -34,6 +34,7 @@ class LLMAgentTool(Tool):
                 name="persona",
                 type="string",
                 description="A detailed description of the persona for the LLM Agent.",
+                required=True,
             ),
             ToolArgument(
                 name="prompt",
@@ -43,6 +44,7 @@ class LLMAgentTool(Tool):
                 all necessary information for the LLM Agent to generate
                 a response.
                 """,
+                required=True,
             ),
             ToolArgument(
                 name="context",
@@ -53,6 +55,7 @@ class LLMAgentTool(Tool):
                 to generate a response. This content can be used to contextualize
                 the prompt. It can be up to 20000 tokens in length.
                 """,
+                required=True,
                 default="",
             ),
             ToolArgument(

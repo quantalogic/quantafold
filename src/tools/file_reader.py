@@ -27,6 +27,7 @@ class FileReaderTool(Tool):
                 name="file_path",
                 type="string",
                 description="The path to the file to read.",
+                required=True,
             ),
             ToolArgument(
                 name="encoding",

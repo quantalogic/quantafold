@@ -24,6 +24,7 @@ class UserInputTool(Tool):
                 name="prompt",
                 type="string",
                 description="The prompt to show to the user when asking for input.",
+                required=True,
             ),
             ToolArgument(
                 name="multiline",

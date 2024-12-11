@@ -30,6 +30,7 @@ class FileTreeTool(Tool):
                 name="directory",
                 type="string",
                 description="The directory path to list files from.",
+                required=True,
             ),
             ToolArgument(
                 name="depth",

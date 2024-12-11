@@ -37,7 +37,8 @@ Here are examples of how to use the available tools:
 3. You must answer in less than {max_iterations} iterations.
 4. You MUST respond with ONLY a valid XML object in one of these two formats:
 
-Format 1 - If you need to use a tool:
+
+### Format 1 - If you need to use a tool, or you are planning to use a tool:
 ```xml
 <response>
     <thought><![CDATA[
@@ -63,13 +64,13 @@ Format 1 - If you need to use a tool:
 
     ]]>
     </thought>
-    <!-- action is mandatory -->
+    <!-- action is mandatory with this format-->
     <action>
         <tool_name>EXACT_TOOL_NAME</tool_name>
         <!-- use CDATA to handle special characters in reason and arguments -->
         <!-- reason is mandatory -->
         <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
-        <!-- aguments is mandatory -->
+        <!-- arguments is mandatory -->
         <arguments>
             <!-- arg is mandatory an must have name and value, multiple args are allowed -->
             <arg>
@@ -82,12 +83,15 @@ Format 1 - If you need to use a tool:
 </response>
 ```
 
-Format 2 - If you have enough information to answer and all the steps are completed,
+### Format 2 - If you have enough information to answer and all the steps are completed,
 VERY IMPORTANT: ONLY USE THIS IF THE GOAL IS FULLY COMPLETED:
 ```xml
 <response>
+    <!-- thought is mandatory -->
     <!-- use CDATA to handle special characters in thought and answer -->
     <thought><![CDATA[Your reasoning about why you can now answer the query]]></thought>
+    <!-- answer is mandatory -->
+    <!- answer is mandatory with this format-->
     <answer><![CDATA[Your final answer to the query, prefer Markdown format if the format is not defined in the query]]></answer>
 </response>
 ```

@@ -27,6 +27,7 @@ class ShellCommandTool(Tool):
                 name="command",
                 type="string",
                 description="The shell command to execute.",
+                required=True,
             ),
             ToolArgument(
                 name="timeout",
