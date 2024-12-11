@@ -1,9 +1,9 @@
 import logging
-from typing import Any, List
+from typing import List
 
 from core.generative_model import GenerativeModel
 from models.tool import Tool, ToolArgument
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 logger = logging.getLogger(__name__)
 

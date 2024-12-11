@@ -8,6 +8,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.theme import Theme
+from tools.display_content import DisplayContentTool
 from tools.file_reader import FileReaderTool
 from tools.file_writer import FileWriterTool
 from tools.llm_agent import LLMAgentTool
@@ -74,6 +75,7 @@ def main() -> None:
     agent.register(FileWriterTool())
     agent.register(UserInputTool())
     agent.register(llm_agent_tool)
+    agent.register(DisplayContentTool())
 
     # Build tool descriptions for welcome message
     tool_descriptions = "".join(
