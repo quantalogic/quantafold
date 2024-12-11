@@ -1,6 +1,8 @@
+import locale
 import logging
+import sys
 
-from core.agent import Agent
+from core.agent import Agent  # noqa: E402
 from core.generative_model import GenerativeModel
 from rich.console import Console
 from rich.logging import RichHandler
@@ -16,6 +18,11 @@ from tools.llm_agent import LLMAgentTool
 from tools.shell_command import ShellCommandTool
 from tools.user_input import UserInputTool
 from tools.wikipedia import WikipediaTool
+
+# Explicitly set UTF-8 encoding
+sys.stdin.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")
+locale.setlocale(locale.LC_ALL, "fr_FR.UTF-8")
 
 # Configure rich console
 custom_theme = Theme(
@@ -35,12 +42,12 @@ logging.basicConfig(
     handlers=[RichHandler(rich_tracebacks=True)],
 )
 
-MODEL_NAME = "gpt-4o-mini"
+# MODEL_NAME = "gpt-4o-mini"
 # MODEL_NAME = "ollama/qwen2.5-coder:14b"
 # MODEL_NAME = "ollama/exaone3.5:2.4b"
-#MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
+# MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
 # MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
-# MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
+MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
 
 
 def get_multiline_input() -> str:

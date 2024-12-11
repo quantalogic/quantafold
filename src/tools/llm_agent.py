@@ -18,11 +18,10 @@ class LLMAgentTool(Tool):
     name: str = Field("LLM_AGENT", description="An LLM Agent tool.")
     description: str = Field(
         """
-        Generate AI responses using a specified persona, prompt and context.
-        As the LLM Agent does not have access to the full context of the conversation,
-        You MUST include the full context of the conversation related to the prompt
-        in the context argument.
-        context is MANDATORY.
+        Generates AI responses based on a specified persona, prompt, and context.
+        Note that the LLM Agent operates without prior conversation memory;
+        therefore, it is essential to include all relevant information in the context parameter,
+        as it is a mandatory requirement. The context must be up to 20000 tokens in length.
         """,
         description="A brief description of what the tool does.",
     )
@@ -40,14 +39,18 @@ class LLMAgentTool(Tool):
                 description="""
                 The prompt to send to the LLM Agent. It must include
                 all necessary information for the LLM Agent to generate
-                a response, as this Agent does not have access to the
-                full context of the conversation.
-                """
+                a response.
+                """,
             ),
             ToolArgument(
                 name="context",
                 type="string",
-                description="You must include the full context of the conversation related to the prompt.",
+                description="""
+                The context to include in the prompt for the LLM Agent.
+                This should include all relevant information for the LLM Agent
+                to generate a response. This content can be used to contextualize
+                the prompt. It can be up to 20000 tokens in length.
+                """,
                 default="",
             ),
             ToolArgument(
@@ -69,7 +72,9 @@ class LLMAgentTool(Tool):
         # Store the model as an instance attribute
         self._model = model
 
-    def execute(self, persona: str, prompt: str, context: str = "", temperature: str = "0.7") -> str:
+    def execute(
+        self, persona: str, prompt: str, context: str = "", temperature: str = "0.7"
+    ) -> str:
         """Generate a response using the LLM Agent with specified persona."""
         if not prompt.strip():
             logger.error("Prompt cannot be empty or whitespace.")
