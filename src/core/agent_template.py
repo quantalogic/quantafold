@@ -33,7 +33,7 @@ Here are examples of how to use the available tools:
 
 ## Instructions:
 1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
-2. Decide on the next action: use a tool or provide a final answer. 
+2. Decide on the next action: use a tool or provide a final answer.
 3. You must answer in less than {max_iterations} iterations.
 4. You MUST respond with ONLY a valid XML object in one of these two formats:
 
