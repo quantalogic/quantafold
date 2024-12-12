@@ -72,7 +72,7 @@ You are a 10x Software Engineer
 
 ## The task to do: 
 
-- Refactor agent.py
+- Refactor agent.py to make it more modular
 
 
 
