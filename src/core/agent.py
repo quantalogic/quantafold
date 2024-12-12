@@ -3,9 +3,9 @@ import os
 import re
 import xml.etree.ElementTree as ET  # noqa: N817
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from core.agent_template import load_template
+from core.agent_template import output_format, query_template
 from core.generative_model import GenerativeModel
 from models.message import Message
 from models.responsestats import ResponseStats
@@ -59,7 +59,8 @@ class Agent:
         self.query = ""
         self.max_iterations = 20
         self.current_iteration = 0
-        self.prompt_template = load_template()
+        self.prompt_template = query_template()
+        self.output_template = output_format()
 
     def register(self, tool: Tool) -> None:
         """Register a new tool with the agent."""
@@ -85,44 +86,48 @@ class Agent:
             )
         )
 
-    def get_history(self) -> str:
-        """Get formatted session history."""
-        history_list: list[str] = []
+    def _display_history(self):
+        """Display the session history in a formatted table."""
         current_sequence: int = 1
-        current_role = ""
-
         # Create a table for history display
         table = Table(
             title="Session History", show_header=True, header_style="bold magenta"
         )
-        table.add_column("Sequence", style="dim")
+        table.add_column("Step", style="dim", no_wrap=True)
         table.add_column("Role", style="cyan")
         table.add_column("Content", style="white", overflow="fold")
 
         for msg in self.messages:
             current_role = msg.role.upper()
+            role_style = {
+                "assistant": "cyan",
+                "user": "green",
+                "tool_execution": "yellow",
+            }.get(msg.role.lower(), "white")
+
+            table.add_row(
+                Text(f"step{str(current_sequence).zfill(4)}", style="dim"),
+                Text(msg.role.upper(), style=role_style),
+                msg.content,
+            )
             if current_role == "TOOL_EXECUTION":
                 current_sequence += 1
 
-            table.add_row(
-                str(current_sequence), Text(current_role, style="bold"), msg.content
-            )
-
         console.print(table)
 
-        # Still maintain the string version for the model
-        history_list.append(
-            f"------------------------- SEQUENCE: {current_sequence} -------------------------"
-        )
+    def get_history(self) -> str:
+        """Get formatted session history."""
+        history_list: list[str] = []
+        current_sequence: int = 1
+        current_role = ""
         for msg in self.messages:
             current_role = msg.role.upper()
             history_list.append(f"{current_role}:\n{msg.content}\n")
             if current_role == "TOOL_EXECUTION":
                 current_sequence += 1
                 history_list.append(
-                    f"------------------------- SEQUENCE: {current_sequence} -------------------------"
+                    f"------------------------- STEP: {current_sequence} -------------------------"
                 )
-
         return "\n".join(history_list)
 
     def think(self) -> None:
@@ -153,8 +158,9 @@ Messages in History: {len(self.messages)}""",
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
             tools=tool_examples,
+            output_format=self.output_template,
         )
-
+        self._display_history()
         response = self.ask_llm(prompt)
         self.add_to_session_memory("assistant", f"Thought: {response.content}")
         self.decide(response.content)
@@ -435,39 +441,3 @@ Arguments: {converted_args}
     def ask_llm(self, prompt: str) -> ResponseStats:
         """Get response from the language model."""
         return self.model.generate(prompt)
-
-    def generate_xml_response(
-        self,
-        thought: str,
-        action: Optional[dict[str, Any]] = None,
-        answer: Optional[str] = None,
-    ) -> str:
-        """Generate a well-formed XML response."""
-        root = ET.Element("response")
-
-        thought_elem = ET.SubElement(root, "thought")
-        thought_elem.text = thought
-
-        if action:
-            action_elem = ET.SubElement(root, "action")
-
-            tool_name = ET.SubElement(action_elem, "tool_name")
-            tool_name.text = action["tool_name"]
-
-            reason = ET.SubElement(action_elem, "reason")
-            reason.text = action["reason"]
-
-            if "arguments" in action:
-                args_elem = ET.SubElement(action_elem, "arguments")
-                for arg_name, arg_value in action["arguments"].items():
-                    arg_elem = ET.SubElement(args_elem, "arg")
-                    name = ET.SubElement(arg_elem, "name")
-                    name.text = arg_name
-                    value = ET.SubElement(arg_elem, "value")
-                    value.text = str(arg_value)
-
-        if answer:
-            answer_elem = ET.SubElement(root, "answer")
-            answer_elem.text = answer
-
-        return ET.tostring(root, encoding="unicode", method="xml")

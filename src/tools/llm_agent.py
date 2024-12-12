@@ -43,7 +43,10 @@ class LLMAgentTool(Tool):
                 description="""
                 The prompt to send to the LLM Agent. It must include
                 all necessary information for the LLM Agent to generate
-                a response.
+                a response. As the agent as no access to prior conversation
+                memory, it is important to include all relevant information
+                in the context parameter.
+                It must be up to 20000 tokens in length.
                 """,
                 required=True,
             ),
@@ -56,14 +59,13 @@ class LLMAgentTool(Tool):
                 to generate a response. This content can be used to contextualize
                 the prompt. It can be up to 20000 tokens in length.
                 """,
-                required=True,
+                required=False,
                 default="",
             ),
             ToolArgument(
                 name="temperature",
                 type="string",  # Keep as string to allow string input
-                description=
-                """
+                description="""
                 The temperature for response generation (0.0 to 1.0).
                 0: no creavity
                 1: creative, but high risk of hallicantion or invented facts

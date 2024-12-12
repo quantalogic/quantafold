@@ -1,68 +1,16 @@
 
-
-def load_template() -> str:
+def  output_format() -> str:
     return """
-
-# Goal to achieve:
-
-You are a ReAct (Reasoning and Acting) agent tasked to achieve the following <query>:
-
-<query><![CDATA[
-{query}
-]]></query>
-
-## Session History:
-
-<history><![CDATA[
-{history}
-]]></history>
-
-- Current iteration: {current_iteration}
-- Max iterations: {max_iterations}
-- You have {remaining_iterations} iterations left.
-
-## Available tools:
-
-Here are examples of how to use the available tools:
-
-<available_tools>
-<![CDATA[
-{tools}
-]]>
-</available_tools>
-
-## Instructions:
-1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
-2. Decide on the next action: use a tool or provide a final answer.
-3. You must answer in less than {max_iterations} iterations.
-4. You MUST respond with ONLY a valid XML object in one of these two formats:
-
-
 ### Format 1 - If you need to use a tool, or you are planning to use a tool:
 ```xml
 <response>
-    <thought><![CDATA[
-
-    ... Your detailed reasoning about the next steps to achieve the goal ...
-
-    ## Planned Action Steps:
-
-    - [ ] Identify and clarify the specific task X that needs to be addressed.
-    - [ ] Execute task Y, ensuring all necessary resources and information are gathered.
-
-    ## Completed Actions:
-
-    ... List all actions that have been successfully completed, along with their outcomes and any significant insights gained ...
-
-    ## Cancelled Actions:
-
-    ... Document any actions that were abandoned, including the rationale behind the decision ...
-
-    ## Upcoming Action:
-
-    - [ ] Proceed to complete task Z, outlining any prerequisites needed for execution.
-
-    ]]>
+    <thought>
+        <reasoning> ... bases on the query, history and observations explain your reasoning ...</reasoning>
+        <plan>
+            - [X] Task 1, done with success
+            - [ ] Task 2 to be done
+            - [ ] Task 3 to be done
+        </plan>
     </thought>
     <!-- action is mandatory with this format-->
     <action>
@@ -97,4 +45,48 @@ VERY IMPORTANT: ONLY USE THIS IF THE GOAL IS FULLY COMPLETED:
 ```
 
 DO NOT include any text before or after the XML object. The response must be well-formed XML.
+
+"""
+
+def query_template() -> str:
+    return """
+
+# Goal to achieve:
+
+You are a ReAct (Reasoning and Acting) agent tasked to achieve the following goal:
+
+## Query to solve:
+
+<query><![CDATA[
+{query}
+]]></query>
+
+## Session History:
+
+<history><![CDATA[
+{history}
+]]></history>
+
+- Current iteration: {current_iteration}
+- Max iterations: {max_iterations}
+- You have {remaining_iterations} iterations left.
+
+## Available tools:
+
+Here are examples of how to use the available tools:
+
+<available_tools>
+<![CDATA[
+{tools}
+]]>
+</available_tools>
+
+## Instructions:
+
+1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
+2. Decide on the next action: use a tool or provide a final answer.
+3. You must answer in less than {max_iterations} iterations.
+4. You MUST respond with ONLY a valid XML object in one of these two formats:
+
+{output_format}
 """

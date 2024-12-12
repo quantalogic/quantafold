@@ -33,7 +33,7 @@ class Tool(BaseModel):
     )
 
     @validator("arguments", each_item=True)
-    def validate_arguments(cls, arg):
+    def validate_arguments(cls, arg):  # noqa: N805
         if not isinstance(arg, ToolArgument):
             raise ValueError("All items in arguments must be instances of ToolArgument")
         return arg
