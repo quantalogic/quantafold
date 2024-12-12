@@ -173,21 +173,45 @@ Messages in History: {len(self.messages)}""",
             return root
 
         except ET.ParseError as e:
-            clean_response = response.replace("\n", "\\n")
-            console.print("[error]Invalid XML format in response[/error]")
-            console.print(
-                Panel(clean_response, title="Invalid Response", border_style="red")
-            )
-            logger.error(f"XML parse error: {str(e)}")
-            raise ValueError("Response is not valid XML. Please try again.") from e
-        except ValueError as e:
-            console.print(f"[error]Validation error: {str(e)}[/error]")
-            raise
+            # Attempt to fix the invalid XML using LLM
+            fixed_response = self.fix_invalid_xml(response)
+            if fixed_response:
+                try:
+                    root = ET.fromstring(fixed_response)
+                    self._validate_root(root)
+                    self._validate_response_content(root)
+                    # Add system message about the fix
+                    self.add_to_session_memory("system", "Attempted to fix invalid XML response using LLM.")
+                    return root
+                except ET.ParseError as e_inner:
+                    # ...existing code...
+                    console.print("[error]Invalid XML format in response[/error]")
+                    console.print(
+                        Panel(response, title="Invalid Response", border_style="red")
+                    )
+                    logger.error(f"XML parse error: {str(e_inner)}")
+                    raise ValueError("Response is not valid XML even after attempted fix. Please try again.") from e_inner
+            else:
+                # ...existing code...
+                console.print("[error]Invalid XML format in response[/error]")
+                console.print(
+                    Panel(response, title="Invalid Response", border_style="red")
+                )
+                logger.error(f"XML parse error: {str(e)}")
+                raise ValueError("Response is not valid XML. Please try again.") from e
+
+    def fix_invalid_xml(self, response: str) -> Optional[str]:
+        """Use LLM to attempt to fix invalid XML responses."""
+        prompt = (
+            "The following response is not valid XML. Please correct it to be well-formed XML:\n\n"
+            f"{response}"
+        )
+        try:
+            fix_response = self.ask_llm(prompt)
+            return fix_response.content
         except Exception as e:
-            console.print(
-                f"[error]Unexpected error while parsing response: {str(e)}[/error]"
-            )
-            raise ValueError("Failed to process the response. Please try again.") from e
+            logger.error(f"Failed to fix XML response: {str(e)}")
+            return None
 
     def _clean_response(self, response: str) -> str:
         """Clean the response string by extracting the first XML code block or the first code block."""
