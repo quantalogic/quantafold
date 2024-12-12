@@ -22,6 +22,7 @@ class LLMAgentTool(Tool):
         Note that the LLM Agent operates without prior conversation memory;
         therefore, it is essential to include all relevant information in the context parameter,
         as it is a mandatory requirement. The context must be up to 20000 tokens in length.
+        Agent must be used for creative writing or to get information the knowledge of AI.
         YOU MUST BE SURE TO INCLUDE ALL RELEVANT INFORMATION IN THE context PARAMETER.
         IT IS A MANDATORY REQUIREMENT.
         """,
@@ -61,7 +62,12 @@ class LLMAgentTool(Tool):
             ToolArgument(
                 name="temperature",
                 type="string",  # Keep as string to allow string input
-                description="The temperature for response generation (0.0 to 1.0).",
+                description=
+                """
+                The temperature for response generation (0.0 to 1.0).
+                0: no creavity
+                1: creative, but high risk of hallicantion or invented facts
+                """,
                 default="0.7",
             ),
         ]

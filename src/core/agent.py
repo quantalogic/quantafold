@@ -284,9 +284,8 @@ Messages in History: {len(self.messages)}""",
                 self.add_to_session_memory("assistant", f"{answer_text}")
 
             else:
-                raise ValueError(
-                    "Response must contain either 'action' or 'answer' element."
-                )
+                self.add_to_session_memory("system", "Response does not contain 'action' or 'answer'. Prompting agent to think again.")
+                self.think()
 
         except Exception as e:
             error_msg = f"Error processing response: {str(e)}"
