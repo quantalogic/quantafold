@@ -35,6 +35,7 @@ class WikipediaTool(Tool):
             type="string",
             description="Wikipedia language code",
             default="en",
+            required=False,
         ),
         ToolArgument(
             name="max_lines",
@@ -85,8 +86,8 @@ class WikipediaTool(Tool):
                 )
                 raise WikipediaAPIError(
                     f"Multiple topics found for '{query}'. Try being more specific. Options include: {', '.join(e.options[:5])}"
-                )
+                ) from inner_e
 
         except Exception as e:
             logger.error(f"Wikipedia API error for query '{query}': {e}")
-            raise WikipediaAPIError(f"Error fetching data from Wikipedia: {str(e)}")
+            raise WikipediaAPIError(f"Failed to fetch Wikipedia content for '{query}'") from e

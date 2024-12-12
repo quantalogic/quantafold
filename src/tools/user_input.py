@@ -6,10 +6,10 @@ from pydantic import Field
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.prompt import Prompt
 
 logger = logging.getLogger(__name__)
 console = Console()
+
 
 class UserInputTool(Tool):
     name: str = Field("USER_INPUT", description="A tool to get input from the user.")
@@ -49,9 +49,12 @@ class UserInputTool(Tool):
             padding=(1, 2),
         )
         console.print(prompt_panel)
-        
+
         if is_multiline:
-            console.print("✏️  Enter multiple lines of text (submit an empty line to finish)", style="italic grey70")
+            console.print(
+                "✏️  Enter multiple lines of text (submit an empty line to finish)",
+                style="italic grey70",
+            )
 
     def execute(self, prompt: str, multiline: str = "false") -> str:
         """Get input from the user with enhanced UI/UX."""
@@ -63,26 +66,29 @@ class UserInputTool(Tool):
                 # Single line input with custom prompt
                 console.print("[cyan]>[/cyan] ", end="")
                 return input()
-            else:
-                # Multiline input with visual feedback
-                lines = []
-                line_number = 1
-                
-                while True:
-                    # Show line numbers for better orientation
-                    console.print(f"[dim]│ {line_number}[/dim] ", end="")
-                    line = input()
-                    if not line:
-                        if not lines:  # Don't allow empty input
-                            console.print("ℹ️  At least one line is required", style="italic grey70")
-                            continue
-                        break
-                    lines.append(line)
-                    line_number += 1
 
-                # Show success message
-                console.print("✨ Input captured successfully!", style="green")
-                return "\n".join(lines)
+            # Multiline input with visual feedback
+            lines = []
+            line_number = 1
+
+            while True:
+                # Show line numbers for better orientation
+                console.print(f"[dim]│ {line_number}[/dim] ", end="")
+                line = input()
+                if not line:
+                    if not lines:  # Don't allow empty input
+                        console.print(
+                            "ℹ️  At least one line is required",
+                            style="italic grey70",
+                        )
+                        continue
+                    break
+                lines.append(line)
+                line_number += 1
+
+            # Show success message
+            console.print("✨ Input captured successfully!", style="green")
+            return "\n".join(lines)
 
         except Exception as e:
             error_msg = f"Error getting user input: {str(e)}"

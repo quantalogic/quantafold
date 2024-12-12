@@ -62,12 +62,12 @@ class ShellCommandTool(Tool):
         except subprocess.CalledProcessError as e:
             error_msg = f"Command failed with exit code {e.returncode}. Error output: {e.stderr.strip()}"
             logger.error(error_msg)
-            raise CommandExecutionError(error_msg)
-        except subprocess.TimeoutExpired:
+            raise CommandExecutionError(error_msg) from e
+        except subprocess.TimeoutExpired as e:
             error_msg = f"Command '{command}' timed out after {timeout} seconds."
             logger.error(error_msg)
-            raise CommandExecutionError(error_msg)
+            raise CommandExecutionError(error_msg) from e
         except Exception as e:
             error_msg = f"Unexpected error executing command '{command}': {str(e)}"
             logger.error(error_msg)
-            raise CommandExecutionError(error_msg)
+            raise CommandExecutionError(error_msg) from e

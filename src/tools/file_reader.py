@@ -60,7 +60,7 @@ class FileReaderTool(Tool):
                 logger.error(error_msg)
                 raise FileReadError(error_msg)
 
-            with open(file_path, "r", encoding=encoding) as file:
+            with open(file_path, encoding=encoding) as file:
                 content = file.read()
 
             logger.info(f"Successfully read file: {file_path}")
@@ -69,8 +69,8 @@ class FileReaderTool(Tool):
         except UnicodeDecodeError as e:
             error_msg = f"Failed to decode file '{file_path}' with encoding '{encoding}': {str(e)}"
             logger.error(error_msg)
-            raise FileReadError(error_msg)
+            raise FileReadError(error_msg) from e
         except Exception as e:
             error_msg = f"Unexpected error reading file '{file_path}': {str(e)}"
             logger.error(error_msg)
-            raise FileReadError(error_msg)
+            raise FileReadError(error_msg) from e
