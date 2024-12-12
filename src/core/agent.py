@@ -1,8 +1,9 @@
 import logging
 import os
+import re
 import xml.etree.ElementTree as ET  # noqa: N817
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from core.agent_template import load_template
 from core.generative_model import GenerativeModel
@@ -162,47 +163,12 @@ Messages in History: {len(self.messages)}""",
         """Extract and validate XML response."""
         try:
             response = response.strip()
-            if response.startswith("```xml"):
-                response = response[6:]
-            if response.endswith("```"):
-                response = response[:-3]
-            response = response.strip()
+            response = self._clean_response(response)
 
             root = ET.fromstring(response)
 
-            if root.tag != "response":
-                raise ValueError("Root element must be 'response'.")
-
-            thought = root.find("thought")
-            if thought is None or not thought.text:
-                raise ValueError(
-                    "Response must contain a 'thought' element with content."
-                )
-
-            action = root.find("action")
-            answer = root.find("answer")
-
-            if action is not None:
-                tool_name = action.find("tool_name")
-                reason = action.find("reason")
-                arguments = action.find("arguments")
-
-                if tool_name is None or reason is None:
-                    raise ValueError(
-                        "Action element must contain 'tool_name' and 'reason' elements."
-                    )
-
-                if tool_name.text.upper() not in self.tools:
-                    console.print(f"[error]Unknown tool name: {tool_name.text}[/error]")
-                    raise ValueError(f"Unknown tool name: {tool_name.text}")
-
-            elif answer is not None:
-                if not answer.text:
-                    raise ValueError("'answer' element must contain text.")
-            else:
-                raise ValueError(
-                    "Response must contain either 'action' or 'answer' element."
-                )
+            self._validate_root(root)
+            self._validate_response_content(root)
 
             return root
 
@@ -222,6 +188,59 @@ Messages in History: {len(self.messages)}""",
                 f"[error]Unexpected error while parsing response: {str(e)}[/error]"
             )
             raise ValueError("Failed to process the response. Please try again.") from e
+
+    def _clean_response(self, response: str) -> str:
+        """Clean the response string by extracting the first XML code block or the first code block."""
+        xml_pattern = re.compile(r"```xml\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+        code_block_pattern = re.compile(r"```[\w]*\s*(.*?)\s*```", re.DOTALL)
+
+        xml_match = xml_pattern.search(response)
+        if xml_match:
+            return xml_match.group(1).strip()
+
+        code_match = code_block_pattern.search(response)
+        if code_match:
+            return code_match.group(1).strip()
+
+        return response.strip()
+
+    def _validate_root(self, root: ET.Element) -> None:
+        """Validate the root element of the XML."""
+        if root.tag != "response":
+            raise ValueError("Root element must be 'response'.")
+
+    def _validate_response_content(self, root: ET.Element) -> None:
+        """Validate the content of the XML response."""
+        thought = root.find("thought")
+        if thought is None or not thought.text:
+            raise ValueError("Response must contain a 'thought' element with content.")
+
+        action = root.find("action")
+        answer = root.find("answer")
+
+        if action is not None:
+            self._validate_action(action)
+        elif answer is not None:
+            if not answer.text:
+                raise ValueError("'answer' element must contain text.")
+        else:
+            raise ValueError(
+                "Response must contain either 'action' or 'answer' element."
+            )
+
+    def _validate_action(self, action: ET.Element) -> None:
+        """Validate the action element of the XML."""
+        tool_name = action.find("tool_name")
+        reason = action.find("reason")
+
+        if tool_name is None or reason is None:
+            raise ValueError(
+                "Action element must contain 'tool_name' and 'reason' elements."
+            )
+
+        if tool_name.text.upper() not in self.tools:
+            console.print(f"[error]Unknown tool name: {tool_name.text}[/error]")
+            raise ValueError(f"Unknown tool name: {tool_name.text}")
 
     def decide(self, response: str) -> None:
         """Process the response and decide next action."""
