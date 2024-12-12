@@ -181,7 +181,9 @@ Messages in History: {len(self.messages)}""",
                     self._validate_root(root)
                     self._validate_response_content(root)
                     # Add system message about the fix
-                    self.add_to_session_memory("system", "Attempted to fix invalid XML response using LLM.")
+                    self.add_to_session_memory(
+                        "system", "Attempted to fix invalid XML response using LLM."
+                    )
                     return root
                 except ET.ParseError as e_inner:
                     # ...existing code...
@@ -190,7 +192,9 @@ Messages in History: {len(self.messages)}""",
                         Panel(response, title="Invalid Response", border_style="red")
                     )
                     logger.error(f"XML parse error: {str(e_inner)}")
-                    raise ValueError("Response is not valid XML even after attempted fix. Please try again.") from e_inner
+                    raise ValueError(
+                        "Response is not valid XML even after attempted fix. Please try again."
+                    ) from e_inner
             else:
                 # ...existing code...
                 console.print("[error]Invalid XML format in response[/error]")
@@ -308,7 +312,10 @@ Messages in History: {len(self.messages)}""",
                 self.add_to_session_memory("assistant", f"{answer_text}")
 
             else:
-                self.add_to_session_memory("system", "Response does not contain 'action' or 'answer'. Prompting agent to think again.")
+                self.add_to_session_memory(
+                    "system",
+                    "Response does not contain 'action' or 'answer'. Prompting agent to think again.",
+                )
                 self.think()
 
         except Exception as e:
@@ -397,7 +404,7 @@ Arguments: {converted_args}
                 except (ValueError, TypeError) as e:
                     raise ValueError(
                         f"Failed to convert argument '{arg.name}' to {arg.type}: {str(e)}"
-                    )
+                    ) from e
             elif arg.required:
                 raise ValueError(f"Missing required argument: {arg.name}")
             elif arg.default is not None:
