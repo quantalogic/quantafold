@@ -76,8 +76,16 @@ DO NOT include any text before or after the XML object. The response must be wel
 """
 
 
-def query_template() -> str:
-    return """
+def query_template(
+    query: str,
+    history: str,
+    current_iteration: int,
+    max_iterations: int,
+    remaining_iterations: int,
+    tools: str,
+    output_format: str
+) -> str:
+    return f"""
 
 # Goal to achieve:
 
@@ -115,6 +123,8 @@ Here are examples of how to use the available tools:
 2. Decide on the next action: use a tool or provide a final answer.
 3. You must answer in less than {max_iterations} iterations.
 4. You MUST respond with ONLY a valid XML object in one of these two formats:
+
+## Output Format:
 
 {output_format}
 """

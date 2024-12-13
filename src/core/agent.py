@@ -59,8 +59,6 @@ class Agent:
         self.query = ""
         self.max_iterations = 20
         self.current_iteration = 0
-        self.prompt_template = query_template()
-        self.output_template = output_format()
 
     def register(self, tool: Tool) -> None:
         """Register a new tool with the agent."""
@@ -151,14 +149,14 @@ Messages in History: {len(self.messages)}""",
         # Collect XML examples from all tools
         tool_examples = "\n".join([tool.to_json() for tool in self.tools.values()])
 
-        prompt = self.prompt_template.format(
+        prompt = query_template(
             query=self.query,
             history=self.get_history(),
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
             tools=tool_examples,
-            output_format=self.output_template,
+            output_format=output_format(),
         )
         self._display_history()
         response = self.ask_llm(prompt)
