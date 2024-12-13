@@ -1,16 +1,43 @@
-
-def  output_format() -> str:
+def output_format() -> str:
     return """
 ### Format 1 - If you need to use a tool, or you are planning to use a tool:
 ```xml
 <response>
     <thought>
         <reasoning> ... bases on the query, history and observations explain your reasoning ...</reasoning>
-        <plan>
-            - [X] Task 1, done with success
-            - [ ] Task 2 to be done
-            - [ ] Task 3 to be done
-        </plan>
+        <to_do>
+            <!- list of the envisioned steps to do to answer the query -->
+            <step>
+                <!-- name is mandatory, snake_case -->
+                <name>step_name</name>
+                <!-- description is mandatory -->
+                <description><![CDATA[description of the step]]></description>
+                <reason><![CDATA[explanation of why you chose this step]]></reason>
+                <depends_on_steps>
+                    <!-- list of the previous steps where result can be useful for this step -->
+                    <step_name>step_name</step_name>
+                    <!-- Additional step names as needed -->
+                </depends_on_steps>
+            </step>
+            <!-- Additional steps as needed -->
+        </to_do>
+        <done>
+            <!-- summary of the steps already done -->
+            <step>
+                <!-- name is mandatory, snake_case -->
+                <name>step_name</name>
+                <!-- description is mandatory -->
+                <description><![CDATA[description of the step]]></description>
+                <reason><![CDATA[explanation of why you chose this step]]></reason>
+                <result><![CDATA[summary of the result of the step]]></result>
+                <depends_on_steps>
+                    <!-- list of the previous steps where result can be useful for this step -->
+                    <step_name>step_name</step_name>
+                    <!-- Additional step names as needed -->
+                </depends_on_steps>
+            </step>
+            <!-- Additional steps as needed -->
+        </done>
     </thought>
     <!-- action is mandatory with this format-->
     <action>
@@ -47,6 +74,7 @@ VERY IMPORTANT: ONLY USE THIS IF THE GOAL IS FULLY COMPLETED:
 DO NOT include any text before or after the XML object. The response must be well-formed XML.
 
 """
+
 
 def query_template() -> str:
     return """
