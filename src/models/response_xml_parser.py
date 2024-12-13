@@ -1,5 +1,4 @@
-import xml.etree.ElementTree as ET
-
+from lxml import etree
 from pydantic import ValidationError
 
 from .response import Response
@@ -22,8 +21,8 @@ class ResponseXmlParser:
             ValueError: If the XML data is malformed or cannot be converted into a Response.
         """
         try:
-            # Parse the XML data
-            root = ET.fromstring(xml_data)
+            # Parse the XML data using lxml
+            root = etree.fromstring(xml_data)
 
             # Extract thought details
             thought_elem = root.find("thought")
@@ -89,13 +88,13 @@ class ResponseXmlParser:
             # Return a validated Response object
             return Response(**response_data)
 
-        except ET.ParseError as e:
+        except etree.XMLSyntaxError as e:
             raise ValueError("Malformed XML data.") from e
         except ValidationError as e:
             raise ValueError("Validation error while creating Response object.") from e
 
 
-# Example usage of ResponseParser
+# Example usage of ResponseXmlParser
 if __name__ == "__main__":
     xml_example = """
     <response>

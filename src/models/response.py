@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Extra, Field, StringConstraints, validator
+from pydantic import BaseModel, Extra, Field, StringConstraints
 from typing_extensions import Annotated
 
 # Set up logging
