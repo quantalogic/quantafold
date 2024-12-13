@@ -13,6 +13,7 @@ python-dotenv = "^1.0.0"
 litellm = "^1.10.1"
 wikipedia = "^1.4.0"
 rich = "^13.9.4"
+beautifulsoup4 = "^4.12.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
@@ -27,6 +28,6 @@ build-backend = "poetry.core.masonry.api"
 line-length = 88
 target-version = "py39"
 select = ["E", "F", "I", "N", "W", "B", "COM", "C4", "UP", "PT", "RET", "SIM"]
-extend-ignore = ["E501", "COM812","UP006","UP035"]  # Example of extending ignored rules including COM812
+extend-ignore = ["E501", "COM812","UP006","UP035","N805","N817","RET504"]  # Example of extending ignored rules including COM812
 
 
