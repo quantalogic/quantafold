@@ -208,7 +208,26 @@ class Agent:
             remaining_iterations=self.max_iterations - self.current_iteration,
             tools=self._available_tools_description("json"),
             output_format=output_format(),
+            past_steps=self._past_steps_format("xml"),
         )
+
+    def _past_steps_format(self, format: str) -> str:
+        """Format past steps in XML or JSON format with pretty printing"""
+        if not self.step_results:
+            return "No previous steps"
+
+        if format == "xml":
+            steps = [
+                PydanticToXMLSerializer.serialize(step) for step in self.step_results
+            ]
+            return "\n".join(f"  {step}" for step in steps)
+
+        if format == "json":
+            return [
+                {"step": step.step, "result": step.result} for step in self.step_results
+            ]
+
+        raise ValueError(f"Unsupported format: {format}")
 
     def _first_xml_code_block(self, input: str) -> str:
         """Extract the first XML code block from the input string formatted in markdown using RegEx.
@@ -250,4 +269,16 @@ class Agent:
 
     def _add_to_memory(self, response_with_memory: ResponseWithActionResult) -> None:
         """Add thought to memory"""
+        current_step = (
+            response_with_memory.thought.to_do[0]
+            if response_with_memory.thought and response_with_memory.thought.to_do
+            else None
+        )
+        current_step_name = current_step.name if current_step else None
+        if current_step_name:
+            self.step_results.append(
+                StepResult(
+                    step=current_step_name, result=response_with_memory.action_result
+                )
+            )
         self.memory.append(response_with_memory)

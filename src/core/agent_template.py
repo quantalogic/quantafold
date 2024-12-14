@@ -87,6 +87,7 @@ def query_template(
     remaining_iterations: int,
     tools: str,
     output_format: str,
+    past_steps: str = "",
 ) -> str:
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     operating_system = os.uname().sysname
@@ -114,6 +115,12 @@ Shell: {current_shell}
 <history><![CDATA[
 {history}
 ]]></history>
+
+## Context
+
+<past_steps>
+{past_steps}
+</past_steps>
 
 - Current iteration: {current_iteration}
 - Max iterations: {max_iterations}
