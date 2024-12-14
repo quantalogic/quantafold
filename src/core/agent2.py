@@ -96,6 +96,10 @@ class Agent:
         print("Decide:\n")
         print(response.model_dump_json(indent=2))
 
+        if response.answer:
+            self._add_to_memory(response)
+            return False
+
         if response.action:
             result = self._handle_action(response.action)
             # Convert result to string to ensure type compatibility
@@ -108,9 +112,9 @@ class Agent:
             self._add_to_memory(response_with_memory)
             return True
 
-        # We get an answer
-        self._add_to_memory(response)
-        return False
+        raise ValueError(
+            f"No answer or action found in response: {response.model_dump_json(indent=2)}"
+        )
 
     def _handle_action(self, action: Action) -> str:
         """Handle tool execution"""
@@ -176,8 +180,8 @@ class Agent:
     def _get_final_answer(self) -> str:
         """Get the final answer from memory"""
         last_memory = self.memory[-1] if self.memory else None
-        if last_memory:
-            return last_memory.action_result
+        if last_memory and last_memory.answer:
+            return last_memory.answer
         return "No answer found"
 
     def _display_status(self) -> None:
