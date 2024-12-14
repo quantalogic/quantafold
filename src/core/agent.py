@@ -7,7 +7,7 @@ from typing import Any, Dict
 from core.agent_template import output_format, query_template
 from core.generative_model import GenerativeModel
 from models.pydantic_to_xml import PydanticToXMLSerializer
-from models.response import Action, Response, ResponseWithActionResult
+from models.response import Action, Response, ResponseWithActionResult, Step
 from models.response_parser import ResponseParser
 from models.tool import Tool
 from pydantic import BaseModel, Field
@@ -24,17 +24,12 @@ class AgentState(Enum):
     COMPLETE = "complete"
 
 
-class StepResult(BaseModel):
-    step: str = Field(description="The step name")
-    result: str = Field(description="The result of the step")
-
-
 class Agent:
     def __init__(self, model: GenerativeModel, max_iterations: int = 20):
         self.model = model
         self.tools: dict[str, Tool] = {}
         self.memory: list[ResponseWithActionResult] = []
-        self.step_results: list[StepResult] = []
+        self.done_steps: list[Step] = []
         self.query: str = ""
         self.max_iterations: int = max_iterations
         self.current_iteration: int = 0
@@ -129,6 +124,16 @@ class Agent:
         if tool.need_validation and not self._get_user_approval(tool_name, action):
             return "Action not approved by user"
 
+        # Initialize parent_context variable
+        parent_context_list: list[str] = []
+
+        arguments = action.arguments.copy()
+
+        if tool.need_parent_context:
+            for step_result in self.step_results:
+                parent_context_list.append(step_result.model_dump_json(indent=2))
+                arguments["parent_context"] = "\n".join(parent_context_list)
+
         try:
             self.console.print(
                 Panel.fit(
@@ -137,10 +142,10 @@ class Agent:
                     border_style="cyan",
                 )
             )
-            result = tool.execute(**action.arguments)
+            result = tool.execute(**arguments)
             self.console.print(f"[green]Tool execution result:[/green] {result}")
             return result
-        except Exception as e:
+        except Exception:
             error_trace = traceback.format_exc()
             self.console.print(
                 f"[red]Error executing tool {tool_name}:[/red]\n{error_trace}"
@@ -208,23 +213,29 @@ class Agent:
             remaining_iterations=self.max_iterations - self.current_iteration,
             tools=self._available_tools_description("json"),
             output_format=output_format(),
-            past_steps=self._past_steps_format("xml"),
+            done_steps=self._past_steps_format("json"),
         )
 
     def _past_steps_format(self, format: str) -> str:
         """Format past steps in XML or JSON format with pretty printing"""
-        if not self.step_results:
+        if not self.done_steps:
             return "No previous steps"
 
         if format == "xml":
             steps = [
-                PydanticToXMLSerializer.serialize(step) for step in self.step_results
+                PydanticToXMLSerializer.serialize(step) for step in self.done_steps
             ]
             return "\n".join(f"  {step}" for step in steps)
 
         if format == "json":
             return [
-                {"step": step.step, "result": step.result} for step in self.step_results
+                {
+                    "name": step.name,
+                    "description": step.description,
+                    "reason": step.reason,
+                    "result": step.result,
+                }
+                for step in self.done_steps
             ]
 
         raise ValueError(f"Unsupported format: {format}")
@@ -276,9 +287,12 @@ class Agent:
         )
         current_step_name = current_step.name if current_step else None
         if current_step_name:
-            self.step_results.append(
-                StepResult(
-                    step=current_step_name, result=response_with_memory.action_result
+            self.done_steps.append(
+                Step(
+                    name=current_step_name,
+                    description=current_step.description,
+                    reason=current_step.reason,
+                    result=response_with_memory.formated_result,
                 )
             )
         self.memory.append(response_with_memory)

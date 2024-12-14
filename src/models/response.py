@@ -71,7 +71,7 @@ class ResponseWithActionResult(Response):
     )
 
     @property  
-    def formatted_result(self) -> str:
+    def formated_result(self) -> str:
         """Return a formatted string of the action result"""
         return str(self.action_result) if self.action_result is not None else ""
 

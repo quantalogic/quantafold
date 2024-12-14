@@ -4,7 +4,7 @@ import os
 
 def output_format() -> str:
     return """
-### Format 1 - If you need to use a tool, or you are planning to use a tool:
+#### Format 1 - If you need to use a tool, or you are planning to use a tool:
 ```xml
 <response>
     <thought>
@@ -62,7 +62,7 @@ def output_format() -> str:
 </response>
 ```
 
-### Format 2 - If you have enough information to answer and you no need to use a tool:
+#### Format 2 - If you have enough information to answer and you no need to use a tool:
 ```xml
 <response>
     <!-- thought is mandatory -->
@@ -87,7 +87,7 @@ def query_template(
     remaining_iterations: int,
     tools: str,
     output_format: str,
-    past_steps: str = "",
+    done_steps: str = "",
 ) -> str:
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     operating_system = os.uname().sysname
@@ -104,29 +104,30 @@ You are a ReAct (Reasoning and Acting) agent tasked to achieve the following goa
 {query}
 ]]></query>
 
-## Environment:
+### Environment:
 
 Current date: {current_date}
 Operating System: {operating_system}
 Shell: {current_shell}
 
-## Session History:
+### Session History:
 
 <history><![CDATA[
 {history}
 ]]></history>
 
-## Context
+<steps_done><!CDATA[
+{done_steps}
+]]>
+</steps_done>
 
-<past_steps>
-{past_steps}
-</past_steps>
+### Context
 
 - Current iteration: {current_iteration}
 - Max iterations: {max_iterations}
 - You have {remaining_iterations} iterations left.
 
-## Available tools:
+### Available tools:
 
 Here are examples of how to use the available tools:
 
@@ -136,14 +137,14 @@ Here are examples of how to use the available tools:
 ]]>
 </available_tools>
 
-## Instructions:
+### Instructions:
 
 1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
 2. Decide on the next action: use a tool or provide a final answer.
 3. You must answer in less than {max_iterations} iterations.
 4. You MUST respond with ONLY a valid XML object in one of these two formats:
 
-## Output Format:
+### Output Format:
 
 {output_format}
 """

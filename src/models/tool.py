@@ -31,6 +31,9 @@ class Tool(BaseModel):
     need_validation: bool = Field(
         False, description="Indicates if the tool needs validation."
     )
+    need_parent_context: bool = Field(
+        False, description="Indicates if the tool needs the parent context.", exclude=True
+    )
 
     @validator("arguments", each_item=True)
     def validate_arguments(cls, arg):  # noqa: N805
