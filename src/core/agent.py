@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET  # noqa: N817
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from core.agent_template import output_format, query_template
+from core.agent_template import output_format, query_template  # Add this line
 from core.generative_model import GenerativeModel
 from models.message import Message
 from models.responsestats import ResponseStats
