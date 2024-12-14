@@ -225,11 +225,8 @@ class Agent:
 
         return [
             {
-                "tought": {
-                    "thought_number": f"{i+1:03d}",
-                    "reasoning": memory.thought.reasoning,
-                    "plan": memory.thought.plan
-                }
+                "thought_number": f"{i+1:03d}",
+                "tought": memory.thought.model_dump_json(indent=2),
             }
             for i, memory in enumerate(self.memory)
         ]

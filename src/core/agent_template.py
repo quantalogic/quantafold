@@ -25,23 +25,6 @@ def output_format() -> str:
             </step>
             <!-- Additional steps as needed -->
         </to_do>
-        <done>
-            <!-- summary of the steps already done -->
-            <step>
-                <!-- name is mandatory, snake_case -->
-                <name>step_name</name>
-                <!-- description is mandatory -->
-                <description><![CDATA[description of the step]]></description>
-                <reason><![CDATA[explanation of why you chose this step]]></reason>
-                <result><![CDATA[summary of the result of the step]]></result>
-                <depends_on_steps>
-                    <!-- list of the previous steps where result can be useful for this step -->
-                    <step_name>step_name</step_name>
-                    <!-- Additional step names as needed -->
-                </depends_on_steps>
-            </step>
-            <!-- Additional steps as needed -->
-        </done>
     </thought>
     <!-- action is mandatory with this format-->
     <action>

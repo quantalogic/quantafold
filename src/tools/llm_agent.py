@@ -86,7 +86,12 @@ class LLMAgentTool(Tool):
         self._model = model
 
     def execute(
-        self, persona: str, prompt: str, context: str = "", temperature: str = "0.7",parent_context: str = ""
+        self,
+        persona: str,
+        prompt: str,
+        context: str = "",
+        temperature: str = "0.7",
+        parent_context: str = "",
     ) -> str:
         """Generate a response using the LLM Agent with specified persona."""
         if not prompt.strip():
@@ -111,7 +116,11 @@ class LLMAgentTool(Tool):
             self._model.role = persona
 
             # Generate response
-            full_prompt = f"Parent Contex: {parent_context}\nContext:\n{context}\nQuery: {prompt}"
+            full_prompt = (
+                f"Parent Contex: {parent_context}\nContext:\n{context}\nQuery: {prompt}"
+            )
+            print("Agent Prompt:")
+            print(full_prompt)
             response = self._model.generate(full_prompt)
 
             logger.info("Successfully generated response for prompt with persona")
