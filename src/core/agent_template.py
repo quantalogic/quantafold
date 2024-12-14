@@ -62,7 +62,7 @@ def output_format() -> str:
 </response>
 ```
 
-#### Format 2 - If you have enough information to answer and you no need to use a tool:
+#### Format 2 - If you have enough information to answer, and all the steps are done:
 ```xml
 <response>
     <!-- thought is mandatory -->

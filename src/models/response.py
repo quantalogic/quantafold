@@ -30,7 +30,7 @@ class Thought(BaseModel):
     """Represents the reasoning and planned actions of the agent."""
 
     reasoning: str = ""  # Set default empty string
-    plan: str = ""      # Set default empty string
+    plan: str = ""  # Set default empty string
     to_do: List[Step] = Field(
         default_factory=list, description="List of planned steps to address the query."
     )
@@ -41,26 +41,30 @@ class Thought(BaseModel):
 
 class Action(BaseModel):
     """Represents the action to be carried out by the agent."""
+
     tool_name: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
         default="no_tool", description="The name of the tool to be used."
     )
-    reason: str = Field(default="", description="Reason for selecting this specific tool.")
+    reason: str = Field(
+        default="", description="Reason for selecting this specific tool."
+    )
     arguments: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Arguments needed for the tool, as key-value pairs."
+        description="Arguments needed for the tool, as key-value pairs.",
     )
 
 
 class Response(BaseModel):
     """Response model representing the AI's response structure."""
+
     thought: Optional[Thought] = None
     action: Optional[Action] = None
     answer: Optional[str] = None
 
-    @validator('*', pre=True)
+    @validator("*", pre=True)
     def validate_response(cls, v, values):
-        if 'answer' in values and 'action' in values:
-            if values['answer'] is None and values['action'] is None:
+        if "answer" in values and "action" in values:
+            if values["answer"] is None and values["action"] is None:
                 raise ValueError("Either answer or action must be present")
         return v
 
@@ -72,12 +76,12 @@ class ResponseWithActionResult(Response):
     """Response model with additional action result field."""
 
     action_result: Optional[str] = Field(
-        None, 
+        None,
         description="The result of the action taken by the agent.",
-        validate_default=True
+        validate_default=True,
     )
 
-    @property  
+    @property
     def formated_result(self) -> str:
         """Return a formatted string of the action result"""
         return str(self.action_result) if self.action_result is not None else ""

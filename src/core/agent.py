@@ -10,7 +10,6 @@ from models.pydantic_to_xml import PydanticToXMLSerializer
 from models.response import Action, Response, ResponseWithActionResult, Step
 from models.response_parser import ResponseParser
 from models.tool import Tool
-from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -143,7 +142,7 @@ class Agent:
         try:
             self.console.print(
                 Panel.fit(
-                    f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {action.arguments}",
+                    f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {arguments}",
                     title="Tool Execution",
                     border_style="cyan",
                 )
@@ -208,21 +207,34 @@ class Agent:
 
     def _prepare_prompt(self) -> str:
         """Prepare prompt for LLM"""
-        last_memory = self.memory[-1] if self.memory else None
         return query_template(
             query=self.query,
-            history=last_memory.model_dump_json(indent=2)
-            if last_memory
-            else "No history",
+            history=self._format_chain_of_thought(),
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
             tools=self._available_tools_description("json"),
             output_format=output_format(),
-            done_steps=self._past_steps_format("json"),
+            done_steps=self._format_past_steps("json"),
         )
 
-    def _past_steps_format(self, format: str) -> str:
+    def _format_chain_of_thought(self) -> str:
+        """Format chain of thought in JSON format with pretty printing"""
+        if not self.memory:
+            return "No chain of thought"
+
+        return [
+            {
+                "tought": {
+                    "thought_number": f"{i+1:03d}",
+                    "reasoning": memory.thought.reasoning,
+                    "plan": memory.thought.plan
+                }
+            }
+            for i, memory in enumerate(self.memory)
+        ]
+
+    def _format_past_steps(self, format: str) -> str:
         """Format past steps in XML or JSON format with pretty printing"""
         if not self.done_steps:
             return "No previous steps"
