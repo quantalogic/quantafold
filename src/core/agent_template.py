@@ -58,8 +58,7 @@ def output_format() -> str:
 </response>
 ```
 
-### Format 2 - If you have enough information to answer and all the steps are completed,
-VERY IMPORTANT: ONLY USE THIS IF THE GOAL IS FULLY COMPLETED:
+### Format 2 - If you have enough information to answer and you no need to use a tool:
 ```xml
 <response>
     <!-- thought is mandatory -->

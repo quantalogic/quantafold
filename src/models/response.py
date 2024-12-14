@@ -29,7 +29,8 @@ class Step(BaseModel):
 class Thought(BaseModel):
     """Represents the reasoning and planned actions of the agent."""
 
-    reasoning: str = Field(..., description="Agent's reasoning for the response.")
+    reasoning: str = ""  # Set default empty string
+    plan: str = ""      # Set default empty string
     to_do: List[Step] = Field(
         default_factory=list, description="List of planned steps to address the query."
     )
@@ -40,24 +41,25 @@ class Thought(BaseModel):
 
 class Action(BaseModel):
     """Represents the action to be carried out by the agent."""
-
     tool_name: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
-        ..., description="The name of the tool to be used."
+        default="no_tool", description="The name of the tool to be used."
     )
-    reason: str = Field(..., description="Reason for selecting this specific tool.")
+    reason: str = Field(default="", description="Reason for selecting this specific tool.")
     arguments: Dict[str, Any] = Field(
-        ..., description="Arguments needed for the tool, as key-value pairs."
+        default_factory=dict,
+        description="Arguments needed for the tool, as key-value pairs."
     )
 
 
 class Response(BaseModel):
     """Main response model representing the output from the AI Agent."""
-
     thought: Thought = Field(
-        ..., description="The reasoning and thought process of the agent."
+        default_factory=Thought,
+        description="The reasoning and thought process of the agent."
     )
-    action: Action = Field(
-        ..., description="The action the agent will take including tool and arguments."
+    action: Optional[Action] = Field(
+        default_factory=Action,
+        description="The action the agent will take including tool and arguments."
     )
 
     class Config:
@@ -68,8 +70,15 @@ class ResponseWithActionResult(Response):
     """Response model with additional action result field."""
 
     action_result: Optional[str] = Field(
-        None, description="The result of the action taken by the agent."
+        None, 
+        description="The result of the action taken by the agent.",
+        validate_default=True
     )
+
+    @property  
+    def formatted_result(self) -> str:
+        """Return a formatted string of the action result"""
+        return str(self.action_result) if self.action_result is not None else ""
 
 
 # Example usage with logging

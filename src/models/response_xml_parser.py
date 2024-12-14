@@ -1,11 +1,66 @@
+from typing import Optional, List
 from lxml import etree
 from pydantic import ValidationError
-
-from .response import Response
-
+from .response import Response, Step
 
 class ResponseXmlParser:
     """Utility class to parse XML and create a Response object."""
+
+    @staticmethod
+    def _safe_find_text(element: etree._Element, path: str, default: str = "") -> str:
+        """Safely find and return element text with a default value."""
+        found = element.find(path) if element is not None else None
+        return found.text if found is not None and found.text is not None else default
+
+    @staticmethod
+    def _parse_steps(parent_elem: etree._Element, step_container: str) -> List[dict]:
+        """Parse steps from a container element safely."""
+        steps = []
+        if parent_elem is None:
+            return steps
+            
+        container = parent_elem.find(step_container)
+        if container is None:
+            return steps
+            
+        for step in container.findall("step"):
+            if step is not None:
+                depends_on_elem = step.find("depends_on_steps")
+                depends_on = []
+                if depends_on_elem is not None:
+                    depends_on = [
+                        dep.text for dep in depends_on_elem.findall("step_name")
+                        if dep is not None and dep.text is not None
+                    ]
+                
+                step_data = {
+                    "name": ResponseXmlParser._safe_find_text(step, "name", "unnamed_step"),
+                    "description": ResponseXmlParser._safe_find_text(step, "description", ""),
+                    "reason": ResponseXmlParser._safe_find_text(step, "reason", ""),
+                    "result": ResponseXmlParser._safe_find_text(step, "result"),
+                    "depends_on_steps": depends_on
+                }
+                steps.append(step_data)
+        return steps
+
+    @staticmethod
+    def _parse_arguments(action_elem: etree._Element) -> dict:
+        """Parse arguments safely."""
+        arguments = {}
+        if action_elem is None:
+            return arguments
+            
+        args_elem = action_elem.find("arguments")
+        if args_elem is None:
+            return arguments
+            
+        for arg in args_elem.findall("arg"):
+            if arg is not None:
+                name = ResponseXmlParser._safe_find_text(arg, "name")
+                value = ResponseXmlParser._safe_find_text(arg, "value")
+                if name:
+                    arguments[name] = value
+        return arguments
 
     @staticmethod
     def parse(xml_data: str) -> Response:
@@ -24,65 +79,20 @@ class ResponseXmlParser:
             # Parse the XML data using lxml
             root = etree.fromstring(xml_data)
 
-            # Extract thought details
             thought_elem = root.find("thought")
-            reasoning = thought_elem.find("reasoning").text
-
-            # Extract to_do steps
-            to_do_steps = []
-            for step in thought_elem.find("to_do").findall("step"):
-                to_do_step = {
-                    "name": step.find("name").text,
-                    "description": step.find("description").text,
-                    "reason": step.find("reason").text,
-                    "result": step.find("result").text
-                    if step.find("result") is not None
-                    else None,
-                    "depends_on_steps": [
-                        dep.text
-                        for dep in step.find("depends_on_steps").findall("step_name")
-                    ],
-                }
-                to_do_steps.append(to_do_step)
-
-            # Extract done steps
-            done_steps = []
-            for step in thought_elem.find("done").findall("step"):
-                done_step = {
-                    "name": step.find("name").text,
-                    "description": step.find("description").text,
-                    "reason": step.find("reason").text,
-                    "result": step.find("result").text
-                    if step.find("result") is not None
-                    else None,
-                    "depends_on_steps": [
-                        dep.text
-                        for dep in step.find("depends_on_steps").findall("step_name")
-                    ],
-                }
-                done_steps.append(done_step)
-
-            # Extract action details
             action_elem = root.find("action")
-            tool_name = action_elem.find("tool_name").text
-            reason = action_elem.find("reason").text
 
-            arguments = {}
-            for arg in action_elem.find("arguments").findall("arg"):
-                arguments[arg.find("name").text] = arg.find("value").text
-
-            # Create Response object
             response_data = {
                 "thought": {
-                    "reasoning": reasoning,
-                    "to_do": to_do_steps,
-                    "done": done_steps,
+                    "reasoning": ResponseXmlParser._safe_find_text(thought_elem, "reasoning"),
+                    "to_do": ResponseXmlParser._parse_steps(thought_elem, "to_do"),
+                    "done": ResponseXmlParser._parse_steps(thought_elem, "done")
                 },
                 "action": {
-                    "tool_name": tool_name,
-                    "reason": reason,
-                    "arguments": arguments,
-                },
+                    "tool_name": ResponseXmlParser._safe_find_text(action_elem, "tool_name", "no_tool"),
+                    "reason": ResponseXmlParser._safe_find_text(action_elem, "reason"),
+                    "arguments": ResponseXmlParser._parse_arguments(action_elem)
+                }
             }
 
             # Return a validated Response object
@@ -92,6 +102,8 @@ class ResponseXmlParser:
             raise ValueError("Malformed XML data.") from e
         except ValidationError as e:
             raise ValueError("Validation error while creating Response object.") from e
+        except Exception as e:
+            raise ValueError(f"Unexpected error parsing XML: {str(e)}") from e
 
 
 # Example usage of ResponseXmlParser

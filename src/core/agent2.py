@@ -1,5 +1,6 @@
 import logging
 import re
+import traceback
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict
@@ -8,7 +9,7 @@ from core.agent_template import output_format, query_template
 from core.generative_model import GenerativeModel
 from models.message import Message
 from models.pydantic_to_xml import PydanticToXMLSerializer
-from models.response import Response, ResponseWithActionResult, Thought
+from models.response import Action, Response, ResponseWithActionResult
 from models.response_parser import ResponseParser
 from models.tool import Tool
 from rich.console import Console
@@ -36,6 +37,8 @@ class Agent:
         self.current_iteration: int = 0
         self.state: AgentState = AgentState.READY
         self.logger = logging.getLogger(__name__)
+        # Configure root logger to filter LiteLLM messages
+        root_logger = logging.getLogger()
         self.console = Console()
 
     def register(self, tool: Tool) -> None:
@@ -49,8 +52,8 @@ class Agent:
             self._reset_state(query)
             return self._run_thinking_loop()
         except Exception as e:
-            self.logger.error(f"Execution error: {e}")
-            return f"Error during execution: {str(e)}"
+            self.logger.error(f"Execution error: {traceback.format_exc()}")
+            return f"Error during execution:\n{traceback.format_exc()}"
 
     def _reset_state(self, query: str) -> None:
         """Reset agent state for new execution"""
@@ -68,7 +71,9 @@ class Agent:
                     break
             except Exception as e:
                 self.state = AgentState.ERROR
-                return f"Error during thinking: {str(e)}"
+                error_trace = traceback.format_exc()
+                self.console.print(f"[red]Error during thinking:[/red]\n{error_trace}")
+                return f"Error during thinking:\n{error_trace}"
 
         return self._get_final_answer()
 
@@ -88,45 +93,54 @@ class Agent:
         """Process response and decide next action"""
         self.state = AgentState.DECIDING
 
-        if not response.action:
-            self._add_to_memory(response)
-            return False
+        print("Decide:\n")
+        print(response.model_dump_json(indent=2))
+        input("Press Enter to continue...")
 
-        result = self._handle_action(response.action)
-        response_with_memory = ResponseWithActionResult(
-            thought=response.thought, action=response.action, action_result=result
-        )
-        self._add_to_memory(response_with_memory)
-        return True
+        if response.action:
+            result = self._handle_action(response.action)
+            # Convert result to string to ensure type compatibility
+            result_str = str(result) if result is not None else None
+            response_with_memory = ResponseWithActionResult(
+                thought=response.thought,
+                action=response.action,
+                action_result=result_str,
+            )
+            self._add_to_memory(response_with_memory)
+            return True
 
-    def _handle_action(self, action: Dict[str, Any]) -> str:
+        # We get an answer
+        self._add_to_memory(response)
+        return False
+
+    def _handle_action(self, action: Action) -> str:
         """Handle tool execution"""
-        tool_name = action.get("tool_name", "").upper()
+        tool_name = action.tool_name.upper()
         tool = self.tools.get(tool_name)
 
         if not tool:
-            self.console.print(f"[red]Tool not found: {tool_name}[/red]")
-            self._add_to_memory("system", f"Tool not found: {tool_name}")
-            return True
+            return f"Tool not found: {tool_name}"
 
         if tool.need_validation and not self._get_user_approval(tool_name, action):
-            return True
+            return "Action not approved by user"
 
         try:
             self.console.print(
                 Panel.fit(
-                    f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {action}",
+                    f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {action.arguments}",
                     title="Tool Execution",
                     border_style="cyan",
                 )
             )
-            result = tool.execute(**action.get("arguments", {}))
+            result = tool.execute(**action.arguments)
             self.console.print(f"[green]Tool execution result:[/green] {result}")
             return result
         except Exception as e:
-            self.console.print(f"[red]Error executing tool {tool_name}:[/red] {str(e)}")
-            error_message = f"Error executing tool {tool_name}: {str(e)}"
-            return error_message
+            error_trace = traceback.format_exc()
+            self.console.print(
+                f"[red]Error executing tool {tool_name}:[/red]\n{error_trace}"
+            )
+            return f"Error executing tool {tool_name}:\n{error_trace}"
 
     def _get_llm_response(self) -> Response:
         """Get response from the language model"""
@@ -136,23 +150,18 @@ class Agent:
 
         with Progress(
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+            TextColumn("Generating response..."),
             console=self.console,
+            transient=True,
+            disable=False,
         ) as progress:
-            task = progress.add_task("[cyan]Generating response...", total=None)
+            task = progress.add_task("", total=None)
             llm_response = self.model.generate(prompt)
-            progress.update(task, completed=True)
 
         self.console.print("\n[bold green]LLM Response[/bold green]")
         self.console.print(Panel(llm_response.content, border_style="green"))
         self.console.input("[yellow]Press Enter to continue...[/yellow]")
         return self._parse_response(llm_response.content)
-
-    def _add_to_memory(self, role: str, content: str) -> None:
-        """Add message to memory"""
-        self.messages.append(
-            Message(role=role, content=content, timestamp=datetime.utcnow().isoformat())
-        )
 
     def _get_user_approval(self, tool_name: str, action: Dict[str, Any]) -> bool:
         """Get user approval for tool execution"""
@@ -167,10 +176,10 @@ class Agent:
 
     def _get_final_answer(self) -> str:
         """Get the final answer from memory"""
-        for msg in reversed(self.messages):
-            if msg.role == "assistant":
-                return msg.content
-        return "No answer generated."
+        last_memory = self.memory[-1] if self.memory else None
+        if last_memory:
+            return last_memory.action_result
+        return "No answer found"
 
     def _display_status(self) -> None:
         """Display current agent status"""
@@ -186,7 +195,9 @@ class Agent:
         last_memory = self.memory[-1] if self.memory else None
         return query_template(
             query=self.query,
-            history=last_memory.model_dump_json(indent=2) if last_memory else "No history",
+            history=last_memory.model_dump_json(indent=2)
+            if last_memory
+            else "No history",
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
