@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Extra, Field, StringConstraints
+from pydantic import BaseModel, Extra, Field, StringConstraints, validator
 from typing_extensions import Annotated
 
 # Set up logging
@@ -53,9 +53,16 @@ class Action(BaseModel):
 
 class Response(BaseModel):
     """Response model representing the AI's response structure."""
-    thought: Thought
+    thought: Optional[Thought] = None
     action: Optional[Action] = None
     answer: Optional[str] = None
+
+    @validator('*', pre=True)
+    def validate_response(cls, v, values):
+        if 'answer' in values and 'action' in values:
+            if values['answer'] is None and values['action'] is None:
+                raise ValueError("Either answer or action must be present")
+        return v
 
     class Config:
         extra = Extra.allow  # Allow additional fields not defined in the model

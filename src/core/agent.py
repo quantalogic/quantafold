@@ -93,11 +93,14 @@ class Agent:
         print("Decide:\n")
         print(response.model_dump_json(indent=2))
 
-        if response.answer:
+        if not response.thought:
+            raise ValueError("Response must contain a thought")
+
+        if response.answer is not None:
             self._add_to_memory(response)
             return False
 
-        if response.action:
+        if response.action is not None:
             result = self._handle_action(response.action)
             # Convert result to string to ensure type compatibility
             result_str = str(result) if result is not None else None
@@ -109,9 +112,12 @@ class Agent:
             self._add_to_memory(response_with_memory)
             return True
 
-        raise ValueError(
-            f"No answer or action found in response: {response.model_dump_json(indent=2)}"
-        )
+        # If we get here, it means the response doesn't have an answer or action
+        # Let's create a default answer based on the thought
+        default_answer = f"Based on the thought: {response.thought.reasoning}"
+        response.answer = default_answer
+        self._add_to_memory(response)
+        return False
 
     def _handle_action(self, action: Action) -> str:
         """Handle tool execution"""
