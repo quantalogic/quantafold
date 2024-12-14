@@ -8,10 +8,14 @@ from core.agent_template import output_format, query_template
 from core.generative_model import GenerativeModel
 from models.message import Message
 from models.pydantic_to_xml import PydanticToXMLSerializer
-from models.response import Response
+from models.response import Response, ResponseWithActionResult, Thought
 from models.response_parser import ResponseParser
 from models.tool import Tool
-from models.response import Thought
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.syntax import Syntax
 
 
 class AgentState(Enum):
@@ -26,13 +30,13 @@ class Agent:
     def __init__(self, model: GenerativeModel, max_iterations: int = 20):
         self.model = model
         self.tools: dict[str, Tool] = {}
-        self.messages: list[Message] = []
-        self.toughts: list[Thought] = []
+        self.memory: list[ResponseWithActionResult] = []
         self.query: str = ""
         self.max_iterations: int = max_iterations
         self.current_iteration: int = 0
         self.state: AgentState = AgentState.READY
         self.logger = logging.getLogger(__name__)
+        self.console = Console()
 
     def register(self, tool: Tool) -> None:
         """Register a new tool with the agent."""
@@ -52,6 +56,7 @@ class Agent:
         """Reset agent state for new execution"""
         self.query = query
         self.messages = []
+        self.memory = []
         self.current_iteration = 0
         self.state = AgentState.READY
 
@@ -62,7 +67,8 @@ class Agent:
                 if not self._think():
                     break
             except Exception as e:
-                self._handle_error(e)
+                self.state = AgentState.ERROR
+                return f"Error during thinking: {str(e)}"
 
         return self._get_final_answer()
 
@@ -76,9 +82,6 @@ class Agent:
 
         self._display_status()
         response = self._get_llm_response()
-        parsed_response = self._parse_response(response)
-        self._add_thought_to_memory(parsed_response)
-
         return self._decide(response)
 
     def _decide(self, response: Response) -> bool:
@@ -86,17 +89,23 @@ class Agent:
         self.state = AgentState.DECIDING
 
         if not response.action:
-            self._add_to_memory("assistant", response.thought)
+            self._add_to_memory(response)
             return False
 
-        return self._handle_action(response.action)
+        result = self._handle_action(response.action)
+        response_with_memory = ResponseWithActionResult(
+            thought=response.thought, action=response.action, action_result=result
+        )
+        self._add_to_memory(response_with_memory)
+        return True
 
-    def _handle_action(self, action: Dict[str, Any]) -> bool:
+    def _handle_action(self, action: Dict[str, Any]) -> str:
         """Handle tool execution"""
         tool_name = action.get("tool_name", "").upper()
         tool = self.tools.get(tool_name)
 
         if not tool:
+            self.console.print(f"[red]Tool not found: {tool_name}[/red]")
             self._add_to_memory("system", f"Tool not found: {tool_name}")
             return True
 
@@ -104,24 +113,39 @@ class Agent:
             return True
 
         try:
-            print(f"🛠️ Execute tools {tool_name} with actions: {action}")
+            self.console.print(
+                Panel.fit(
+                    f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {action}",
+                    title="Tool Execution",
+                    border_style="cyan",
+                )
+            )
             result = tool.execute(**action.get("arguments", {}))
-            self._add_to_memory("tool_execution", str(result))
-            return True
+            self.console.print(f"[green]Tool execution result:[/green] {result}")
+            return result
         except Exception as e:
-            self._handle_error(e)
-            return True
+            self.console.print(f"[red]Error executing tool {tool_name}:[/red] {str(e)}")
+            error_message = f"Error executing tool {tool_name}: {str(e)}"
+            return error_message
 
     def _get_llm_response(self) -> Response:
         """Get response from the language model"""
         prompt = self._prepare_prompt()
-        print("----------------------------------")
-        print(f"🎅\nPrompt:\n {prompt}\n")
-        input("Press Enter to continue...")
-        llm_response = self.model.generate(prompt)
-        print(f"\n🤖 Response:\n {llm_response}\n")
-        # pause
-        input("Press Enter to continue...")
+        self.console.print("\n[bold blue]Generated Prompt[/bold blue]")
+        self.console.print(Panel(prompt, border_style="blue"))
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console,
+        ) as progress:
+            task = progress.add_task("[cyan]Generating response...", total=None)
+            llm_response = self.model.generate(prompt)
+            progress.update(task, completed=True)
+
+        self.console.print("\n[bold green]LLM Response[/bold green]")
+        self.console.print(Panel(llm_response.content, border_style="green"))
+        self.console.input("[yellow]Press Enter to continue...[/yellow]")
         return self._parse_response(llm_response.content)
 
     def _add_to_memory(self, role: str, content: str) -> None:
@@ -130,16 +154,16 @@ class Agent:
             Message(role=role, content=content, timestamp=datetime.utcnow().isoformat())
         )
 
-    def _handle_error(self, error: Exception) -> None:
-        """Handle errors during execution"""
-        self.state = AgentState.ERROR
-        self.logger.error(f"Error: {error}")
-        self._add_to_memory("system", f"Error: {str(error)}")
-
     def _get_user_approval(self, tool_name: str, action: Dict[str, Any]) -> bool:
         """Get user approval for tool execution"""
-        print(f"Require approval for {tool_name} with actions: {action}")
-        return input("Approve (y/n)? ").lower().strip() == "y"
+        self.console.print(
+            Panel.fit(
+                f"[yellow]Tool:[/yellow] {tool_name}\n[yellow]Actions:[/yellow] {action}",
+                title="Approval Required",
+                border_style="yellow",
+            )
+        )
+        return self.console.input("Approve (y/n)? ").lower().strip() == "y"
 
     def _get_final_answer(self) -> str:
         """Get the final answer from memory"""
@@ -150,16 +174,19 @@ class Agent:
 
     def _display_status(self) -> None:
         """Display current agent status"""
-        print(f"Iteration: {self.current_iteration}/{self.max_iterations}")
-        print(f"State: {self.state.value}")
+        self.console.rule("[bold blue]Agent Status")
+        self.console.print(
+            f"[yellow]Iteration:[/yellow] {self.current_iteration}/{self.max_iterations}"
+        )
+        self.console.print(f"[yellow]State:[/yellow] {self.state.value}")
+        self.console.rule()
 
     def _prepare_prompt(self) -> str:
         """Prepare prompt for LLM"""
-        last_thought = self.last_tought()
-        last_thought = last_thought or Thought(reasoning="No previous thoughts.")
+        last_memory = self.memory[-1] if self.memory else None
         return query_template(
             query=self.query,
-            history=last_thought.model_dump_json(indent=2),
+            history=last_memory.model_dump_json(indent=2) if last_memory else "No history",
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
@@ -205,15 +232,6 @@ class Agent:
         """Format message history"""
         return "\n".join(f"{msg.role}: {msg.content}" for msg in self.messages)
 
-    def _add_thought_to_memory(self, response: Response) -> None:
+    def _add_to_memory(self, response_with_memory: ResponseWithActionResult) -> None:
         """Add thought to memory"""
-        self._tought.append(response.thought)
-        print(f"Thought: {response.thought}")
-        input("Press Enter to continue...")
-        self._add_to_memory("assistant", f"Thought: {response.thought}")
-
-    def last_tought(self) -> Thought:
-        """Get the last thought from memory"""
-        if len(self.toughts) == 0:
-            return None
-        return self.toughts[-1]
+        self.memory.append(response_with_memory)

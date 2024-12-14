@@ -64,6 +64,14 @@ class Response(BaseModel):
         extra = Extra.allow  # Allow additional fields not defined in the model
 
 
+class ResponseWithActionResult(Response):
+    """Response model with additional action result field."""
+
+    action_result: Optional[str] = Field(
+        None, description="The result of the action taken by the agent."
+    )
+
+
 # Example usage with logging
 if __name__ == "__main__":
     response_data = {
