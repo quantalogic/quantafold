@@ -12,6 +12,7 @@ from models.pydantic_to_xml import PydanticToXMLSerializer
 from models.response import Action, Response, ResponseWithActionResult
 from models.response_parser import ResponseParser
 from models.tool import Tool
+from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -27,18 +28,23 @@ class AgentState(Enum):
     COMPLETE = "complete"
 
 
+class StepResult(BaseModel):
+    step: str = Field(description="The step name")
+    result: str = Field(description="The result of the step")
+
+
 class Agent:
     def __init__(self, model: GenerativeModel, max_iterations: int = 20):
         self.model = model
         self.tools: dict[str, Tool] = {}
         self.memory: list[ResponseWithActionResult] = []
+        self.step_results: list[StepResult] = []
         self.query: str = ""
         self.max_iterations: int = max_iterations
         self.current_iteration: int = 0
         self.state: AgentState = AgentState.READY
         self.logger = logging.getLogger(__name__)
         # Configure root logger to filter LiteLLM messages
-        root_logger = logging.getLogger()
         self.console = Console()
 
     def register(self, tool: Tool) -> None:

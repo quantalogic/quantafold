@@ -10,6 +10,7 @@ from core.generative_model import GenerativeModel
 from models.message import Message
 from models.responsestats import ResponseStats
 from models.tool import Tool
+from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
@@ -19,6 +20,11 @@ from rich.theme import Theme
 
 os.environ["LITELLM_LOG_LEVEL"] = "ERROR"
 logging.getLogger().setLevel(logging.ERROR)
+
+
+class StepResult(BaseModel):
+    step: Field(str, description="The step name")
+    result: Field(str, description="The result of the step")
 
 
 # Configure rich console with no logging

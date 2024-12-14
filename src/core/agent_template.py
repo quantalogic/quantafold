@@ -1,3 +1,7 @@
+import os
+import datetime
+
+
 def output_format() -> str:
     return """
 ### Format 1 - If you need to use a tool, or you are planning to use a tool:
@@ -82,8 +86,11 @@ def query_template(
     max_iterations: int,
     remaining_iterations: int,
     tools: str,
-    output_format: str
+    output_format: str,
 ) -> str:
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    operating_system = os.uname().sysname
+    current_shell = os.environ.get("SHELL", "N/A")
     return f"""
 
 # Goal to achieve:
@@ -95,6 +102,12 @@ You are a ReAct (Reasoning and Acting) agent tasked to achieve the following goa
 <query><![CDATA[
 {query}
 ]]></query>
+
+## Environment:
+
+Current date: {current_date}
+Operating System: {operating_system}
+Shell: {current_shell}
 
 ## Session History:
 
