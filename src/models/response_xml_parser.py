@@ -3,6 +3,7 @@ from lxml import etree
 from pydantic import ValidationError
 from .response import Response, Step
 
+
 class ResponseXmlParser:
     """Utility class to parse XML and create a Response object."""
 
@@ -18,27 +19,32 @@ class ResponseXmlParser:
         steps = []
         if parent_elem is None:
             return steps
-            
+
         container = parent_elem.find(step_container)
         if container is None:
             return steps
-            
+
         for step in container.findall("step"):
             if step is not None:
                 depends_on_elem = step.find("depends_on_steps")
                 depends_on = []
                 if depends_on_elem is not None:
                     depends_on = [
-                        dep.text for dep in depends_on_elem.findall("step_name")
+                        dep.text
+                        for dep in depends_on_elem.findall("step_name")
                         if dep is not None and dep.text is not None
                     ]
-                
+
                 step_data = {
-                    "name": ResponseXmlParser._safe_find_text(step, "name", "unnamed_step"),
-                    "description": ResponseXmlParser._safe_find_text(step, "description", ""),
+                    "name": ResponseXmlParser._safe_find_text(
+                        step, "name", "unnamed_step"
+                    ),
+                    "description": ResponseXmlParser._safe_find_text(
+                        step, "description", ""
+                    ),
                     "reason": ResponseXmlParser._safe_find_text(step, "reason", ""),
                     "result": ResponseXmlParser._safe_find_text(step, "result"),
-                    "depends_on_steps": depends_on
+                    "depends_on_steps": depends_on,
                 }
                 steps.append(step_data)
         return steps
@@ -49,11 +55,11 @@ class ResponseXmlParser:
         arguments = {}
         if action_elem is None:
             return arguments
-            
+
         args_elem = action_elem.find("arguments")
         if args_elem is None:
             return arguments
-            
+
         for arg in args_elem.findall("arg"):
             if arg is not None:
                 name = ResponseXmlParser._safe_find_text(arg, "name")
@@ -64,38 +70,35 @@ class ResponseXmlParser:
 
     @staticmethod
     def parse(xml_data: str) -> Response:
-        """Parse XML string to create a Response object.
-
-        Args:
-            xml_data (str): XML string representation of the Response.
-
-        Returns:
-            Response: A Pydantic Response object.
-
-        Raises:
-            ValueError: If the XML data is malformed or cannot be converted into a Response.
-        """
+        """Parse XML string to create a Response object."""
         try:
-            # Parse the XML data using lxml
             root = etree.fromstring(xml_data)
-
-            thought_elem = root.find("thought")
-            action_elem = root.find("action")
-
-            response_data = {
-                "thought": {
-                    "reasoning": ResponseXmlParser._safe_find_text(thought_elem, "reasoning"),
-                    "to_do": ResponseXmlParser._parse_steps(thought_elem, "to_do"),
-                    "done": ResponseXmlParser._parse_steps(thought_elem, "done")
-                },
-                "action": {
-                    "tool_name": ResponseXmlParser._safe_find_text(action_elem, "tool_name", "no_tool"),
-                    "reason": ResponseXmlParser._safe_find_text(action_elem, "reason"),
-                    "arguments": ResponseXmlParser._parse_arguments(action_elem)
+            
+            # Check which format we're dealing with
+            if root.find("answer") is not None:
+                # Format 2 - Simple response with thought and answer
+                response_data = {
+                    "thought": ResponseXmlParser._safe_find_text(root, "thought"),
+                    "answer": ResponseXmlParser._safe_find_text(root, "answer"),
                 }
-            }
+            else:
+                # Format 1 - Complex response with thought object and action
+                thought_elem = root.find("thought")
+                action_elem = root.find("action")
+                
+                response_data = {
+                    "thought": {
+                        "reasoning": ResponseXmlParser._safe_find_text(thought_elem, "reasoning"),
+                        "to_do": ResponseXmlParser._parse_steps(thought_elem, "to_do"),
+                        "done": ResponseXmlParser._parse_steps(thought_elem, "done"),
+                    },
+                    "action": {
+                        "tool_name": ResponseXmlParser._safe_find_text(action_elem, "tool_name", "no_tool"),
+                        "reason": ResponseXmlParser._safe_find_text(action_elem, "reason"),
+                        "arguments": ResponseXmlParser._parse_arguments(action_elem),
+                    },
+                }
 
-            # Return a validated Response object
             return Response(**response_data)
 
         except etree.XMLSyntaxError as e:
@@ -106,9 +109,10 @@ class ResponseXmlParser:
             raise ValueError(f"Unexpected error parsing XML: {str(e)}") from e
 
 
-# Example usage of ResponseXmlParser
+# Update the example usage section
 if __name__ == "__main__":
-    xml_example = """
+    # Format 1 example
+    xml_example_1 = """
     <response>
         <thought>
             <reasoning>Based on the analysis, the steps required are clear.</reasoning>
@@ -150,8 +154,23 @@ if __name__ == "__main__":
     </response>
     """
 
+    # Format 2 example
+    xml_example_2 = """
+    <response>
+        <thought><![CDATA[Based on the available information, I can answer directly.]]></thought>
+        <answer><![CDATA[Here is the final answer in Markdown format.]]></answer>
+    </response>
+    """
+
     try:
-        response_obj = ResponseXmlParser.parse(xml_example)
-        print(response_obj.model_dump_json(indent=2))
+        # Test Format 1
+        response_1 = ResponseXmlParser.parse(xml_example_1)
+        print("Format 1 parsed successfully:")
+        print(response_1.model_dump_json(indent=2))
+
+        # Test Format 2
+        response_2 = ResponseXmlParser.parse(xml_example_2)
+        print("\nFormat 2 parsed successfully:")
+        print(response_2.model_dump_json(indent=2))
     except ValueError as e:
         print(f"Error: {e}")

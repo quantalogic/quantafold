@@ -95,7 +95,6 @@ class Agent:
 
         print("Decide:\n")
         print(response.model_dump_json(indent=2))
-        input("Press Enter to continue...")
 
         if response.action:
             result = self._handle_action(response.action)

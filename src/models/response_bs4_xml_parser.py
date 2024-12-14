@@ -7,6 +7,52 @@ class ResponseBs4XmlParser:
     """Utility class to parse XML and create a Response object."""
 
     @staticmethod
+    def _get_text_or_cdata(element) -> str:
+        """Extract text from element, handling CDATA if present."""
+        if not element:
+            return ""
+        return "".join(str(content) for content in element.contents).strip()
+
+    @staticmethod
+    def _parse_step(step_elem) -> Step:
+        """Parse a single step element into a Step object."""
+        if not step_elem.find("name") and not step_elem.find("n"):
+            raise ValueError("Step name is mandatory")
+        if not step_elem.find("description"):
+            raise ValueError("Step description is mandatory")
+        if not step_elem.find("reason"):
+            raise ValueError("Step reason is mandatory")
+
+        name = (step_elem.find("name") or step_elem.find("n")).get_text().strip()
+        description = ResponseBs4XmlParser._get_text_or_cdata(
+            step_elem.find("description")
+        )
+        reason = ResponseBs4XmlParser._get_text_or_cdata(step_elem.find("reason"))
+
+        result = None
+        result_elem = step_elem.find("result") or step_elem.find("r")
+        if result_elem:
+            result = ResponseBs4XmlParser._get_text_or_cdata(result_elem)
+
+        depends_on_steps = []
+        depends_elem = step_elem.find("depends_on_steps") or step_elem.find(
+            "depends_on"
+        )
+        if depends_elem:
+            depends_on_steps = [
+                step_name.get_text().strip()
+                for step_name in depends_elem.find_all("step_name")
+            ]
+
+        return Step(
+            name=name,
+            description=description,
+            reason=reason,
+            result=result,
+            depends_on_steps=depends_on_steps,
+        )
+
+    @staticmethod
     def parse(xml_data: str) -> Response:
         """Parse XML string to create a Response object.
 
@@ -20,94 +66,38 @@ class ResponseBs4XmlParser:
             ValueError: If the XML data is malformed or cannot be converted into a Response.
         """
         try:
-            # Use BeautifulSoup to parse the XML data
             soup = BeautifulSoup(xml_data, "xml")
+            response_elem = soup.find("response")
+            if not response_elem:
+                raise ValueError("Missing response element")
 
-            # Extract thought details
-            thought_elem = soup.find("thought")
-            reasoning = thought_elem.find("reasoning").get_text()
+            thought_elem = response_elem.find("thought")
+            if not thought_elem or not thought_elem.text.strip():
+                raise ValueError("Missing or empty thought element")
 
-            # Extract to_do steps
-            to_do_steps = []
-            to_do_elem = thought_elem.find("to_do_steps") or thought_elem.find("to_do")
-            for step in to_do_elem.find_all("step"):
-                to_do_steps.append(
-                    Step(
-                        name=step.find("name").get_text()
-                        if step.find("name")
-                        else step.find("n").get_text(),
-                        description=step.find("description").get_text(),
-                        reason=step.find("reason").get_text(),
-                        result=step.find("result").get_text()
-                        if step.find("result")
-                        else step.find("r").get_text()
-                        if step.find("r")
-                        else None,
-                        depends_on_steps=[
-                            dep.get_text()
-                            for dep in (
-                                step.find("depends_on_steps") or step.find("depends_on")
-                            ).find_all("step_name")
-                        ]
-                        if step.find("depends_on_steps") or step.find("depends_on")
-                        else [],
-                    )
-                )
-
-            # Extract done steps
-            done_steps = []
-            done_elem = thought_elem.find("done_steps") or thought_elem.find("done")
-            for step in done_elem.find_all("step"):
-                done_steps.append(
-                    Step(
-                        name=step.find("name").get_text()
-                        if step.find("name")
-                        else step.find("n").get_text(),
-                        description=step.find("description").get_text(),
-                        reason=step.find("reason").get_text(),
-                        result=step.find("result").get_text()
-                        if step.find("result")
-                        else step.find("r").get_text()
-                        if step.find("r")
-                        else None,
-                        depends_on_steps=[
-                            dep.get_text()
-                            for dep in (
-                                step.find("depends_on_steps") or step.find("depends_on")
-                            ).find_all("step_name")
-                        ]
-                        if step.find("depends_on_steps") or step.find("depends_on")
-                        else [],
-                    )
-                )
-
-            # Extract action details
-            action_elem = soup.find("action")
-            tool_name = action_elem.find("tool_name").get_text()
-            reason = action_elem.find("reason").get_text()
-            arguments = {}
-            for arg in action_elem.find("arguments").find_all("arg"):
-                arguments[arg.find("name").get_text()] = arg.find("value").get_text()
-
-            # Create Response object
-            response_data = Response(
-                thought=Thought(
-                    reasoning=reasoning,
-                    to_do=to_do_steps,
-                    done=done_steps,
-                ),
-                action=Action(
-                    tool_name=tool_name,
-                    reason=reason,
-                    arguments=arguments,
-                ),
+            # Parse thought into separate components
+            thought_text = thought_elem.text.strip()
+            thought = Thought(
+                reasoning=thought_text,
+                plan="",  # Default empty plan
+                to_do=[],  # Default empty to_do list
+                done=[]    # Default empty done list
             )
 
-            # Return the validated Response object
-            return response_data
+            # Parse answer if present
+            answer = None
+            answer_elem = response_elem.find("answer")
+            if answer_elem:
+                answer = answer_elem.text.strip()
+
+            # Create and return Response object
+            return Response(
+                thought=thought,
+                answer=answer
+            )
 
         except Exception as e:
-            raise ValueError("Error parsing XML data.") from e
+            raise ValueError(f"Error parsing XML data: {str(e)}") from e
 
 
 # Example usage

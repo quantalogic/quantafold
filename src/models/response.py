@@ -52,15 +52,10 @@ class Action(BaseModel):
 
 
 class Response(BaseModel):
-    """Main response model representing the output from the AI Agent."""
-    thought: Thought = Field(
-        default_factory=Thought,
-        description="The reasoning and thought process of the agent."
-    )
-    action: Optional[Action] = Field(
-        default_factory=Action,
-        description="The action the agent will take including tool and arguments."
-    )
+    """Response model representing the AI's response structure."""
+    thought: Thought
+    action: Optional[Action] = None
+    answer: Optional[str] = None
 
     class Config:
         extra = Extra.allow  # Allow additional fields not defined in the model
