@@ -1,447 +1,253 @@
 import logging
-import os
 import re
-import xml.etree.ElementTree as ET  # noqa: N817
-from datetime import datetime
-from typing import Any, Dict, Optional
+import traceback
+from enum import Enum
+from typing import Any, Dict
 
-from core.agent_template import output_format, query_template  # Add this line
+from core.agent_template import output_format, query_template
 from core.generative_model import GenerativeModel
-from models.message import Message
-from models.responsestats import ResponseStats
+from models.pydantic_to_xml import PydanticToXMLSerializer
+from models.response import Action, Response, ResponseWithActionResult
+from models.response_parser import ResponseParser
 from models.tool import Tool
 from pydantic import BaseModel, Field
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
-from rich.theme import Theme
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
-os.environ["LITELLM_LOG_LEVEL"] = "ERROR"
-logging.getLogger().setLevel(logging.ERROR)
+
+class AgentState(Enum):
+    READY = "ready"
+    THINKING = "thinking"
+    DECIDING = "deciding"
+    ERROR = "error"
+    COMPLETE = "complete"
 
 
 class StepResult(BaseModel):
-    step: Field(str, description="The step name")
-    result: Field(str, description="The result of the step")
-
-
-# Configure rich console with no logging
-console = Console(
-    theme=Theme(
-        {"info": "cyan", "warning": "yellow", "error": "red", "success": "green"}
-    )
-)
-
-# Remove all handlers from root logger
-logging.getLogger().handlers = []
-
-# Configure logging with rich, but only for our app
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    handlers=[
-        RichHandler(rich_tracebacks=True, show_time=False, show_path=False, markup=True)
-    ],
-)
-
-# Set our logger to INFO while keeping others at ERROR
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Ensure no logging propagation for any existing loggers
-for name in logging.root.manager.loggerDict:
-    if name != __name__:  # Don't affect our own logger
-        logging.getLogger(name).setLevel(logging.ERROR)
-        logging.getLogger(name).propagate = False
+    step: str = Field(description="The step name")
+    result: str = Field(description="The result of the step")
 
 
 class Agent:
-    def __init__(self, model: GenerativeModel) -> None:
+    def __init__(self, model: GenerativeModel, max_iterations: int = 20):
         self.model = model
         self.tools: dict[str, Tool] = {}
-        self.messages: list[Message] = []
-        self.query = ""
-        self.max_iterations = 20
-        self.current_iteration = 0
+        self.memory: list[ResponseWithActionResult] = []
+        self.step_results: list[StepResult] = []
+        self.query: str = ""
+        self.max_iterations: int = max_iterations
+        self.current_iteration: int = 0
+        self.state: AgentState = AgentState.READY
+        self.logger = logging.getLogger(__name__)
+        # Configure root logger to filter LiteLLM messages
+        self.console = Console()
 
     def register(self, tool: Tool) -> None:
         """Register a new tool with the agent."""
         self.tools[tool.name.upper()] = tool
+        self.logger.info(f"Registered tool: {tool.name}")
 
-    def add_to_session_memory(self, role: str, content: str) -> None:
-        """Add a new message to the session history."""
-        timestamp = datetime.utcnow().isoformat()
-        self.messages.append(Message(role=role, content=content, timestamp=timestamp))
-        # Display the message with rich formatting
-        role_style = {
-            "assistant": "cyan",
-            "user": "green",
-            "tool_execution": "yellow",
-        }.get(role.lower(), "white")
+    def execute(self, query: str) -> str:
+        """Main execution entry point"""
+        try:
+            self._reset_state(query)
+            return self._run_thinking_loop()
+        except Exception:
+            self.logger.error(f"Execution error: {traceback.format_exc()}")
+            return f"Error during execution:\n{traceback.format_exc()}"
 
-        console.print(
-            Panel(
-                Text(content, style="white"),
-                title=f"[{role_style}]{role.upper()}[/{role_style}]",
-                subtitle=f"[dim]{timestamp}[/dim]",
-                border_style=role_style,
-            )
-        )
+    def _reset_state(self, query: str) -> None:
+        """Reset agent state for new execution"""
+        self.query = query
+        self.messages = []
+        self.memory = []
+        self.current_iteration = 0
+        self.state = AgentState.READY
 
-    def _display_history(self):
-        """Display the session history in a formatted table."""
-        current_sequence: int = 1
-        # Create a table for history display
-        table = Table(
-            title="Session History", show_header=True, header_style="bold magenta"
-        )
-        table.add_column("Step", style="dim", no_wrap=True)
-        table.add_column("Role", style="cyan")
-        table.add_column("Content", style="white", overflow="fold")
+    def _run_thinking_loop(self) -> str:
+        """Main thinking loop"""
+        while self.current_iteration < self.max_iterations:
+            try:
+                if not self._think():
+                    break
+            except Exception:
+                self.state = AgentState.ERROR
+                error_trace = traceback.format_exc()
+                self.console.print(f"[red]Error during thinking:[/red]\n{error_trace}")
+                return f"Error during thinking:\n{error_trace}"
 
-        for msg in self.messages:
-            current_role = msg.role.upper()
-            role_style = {
-                "assistant": "cyan",
-                "user": "green",
-                "tool_execution": "yellow",
-            }.get(msg.role.lower(), "white")
+        return self._get_final_answer()
 
-            table.add_row(
-                Text(f"step{str(current_sequence).zfill(4)}", style="dim"),
-                Text(msg.role.upper(), style=role_style),
-                msg.content,
-            )
-            if current_role == "TOOL_EXECUTION":
-                current_sequence += 1
-
-        console.print(table)
-
-    def get_history(self) -> str:
-        """Get formatted session history."""
-        history_list: list[str] = []
-        current_sequence: int = 1
-        current_role = ""
-        for msg in self.messages:
-            current_role = msg.role.upper()
-            history_list.append(f"{current_role}:\n{msg.content}\n")
-            if current_role == "TOOL_EXECUTION":
-                current_sequence += 1
-                history_list.append(
-                    f"------------------------- STEP: {current_sequence} -------------------------"
-                )
-        return "\n".join(history_list)
-
-    def think(self) -> None:
-        """Execute the thinking step of the agent."""
+    def _think(self) -> bool:
+        """Execute one thinking iteration"""
+        self.state = AgentState.THINKING
         self.current_iteration += 1
+
         if self.current_iteration > self.max_iterations:
-            console.print("[warning]Reached maximum iterations. Stopping.[/warning]")
-            return
+            return False
 
-        # Display current status
-        status_panel = Panel(
-            f"""[bold]Current Status[/bold]
-Iteration: {self.current_iteration}/{self.max_iterations}
-Active Tools: {len(self.tools)}
-Messages in History: {len(self.messages)}""",
-            title="Agent Status",
-            border_style="blue",
+        self._display_status()
+        response = self._get_llm_response()
+        return self._decide(response)
+
+    def _decide(self, response: Response) -> bool:
+        """Process response and decide next action"""
+        self.state = AgentState.DECIDING
+
+        print("Decide:\n")
+        print(response.model_dump_json(indent=2))
+
+        if response.answer:
+            self._add_to_memory(response)
+            return False
+
+        if response.action:
+            result = self._handle_action(response.action)
+            # Convert result to string to ensure type compatibility
+            result_str = str(result) if result is not None else None
+            response_with_memory = ResponseWithActionResult(
+                thought=response.thought,
+                action=response.action,
+                action_result=result_str,
+            )
+            self._add_to_memory(response_with_memory)
+            return True
+
+        raise ValueError(
+            f"No answer or action found in response: {response.model_dump_json(indent=2)}"
         )
-        console.print(status_panel)
 
-        # Collect XML examples from all tools
-        tool_examples = "\n".join([tool.to_json() for tool in self.tools.values()])
+    def _handle_action(self, action: Action) -> str:
+        """Handle tool execution"""
+        tool_name = action.tool_name.upper()
+        tool = self.tools.get(tool_name)
 
-        prompt = query_template(
+        if not tool:
+            return f"Tool not found: {tool_name}"
+
+        if tool.need_validation and not self._get_user_approval(tool_name, action):
+            return "Action not approved by user"
+
+        try:
+            self.console.print(
+                Panel.fit(
+                    f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {action.arguments}",
+                    title="Tool Execution",
+                    border_style="cyan",
+                )
+            )
+            result = tool.execute(**action.arguments)
+            self.console.print(f"[green]Tool execution result:[/green] {result}")
+            return result
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            self.console.print(
+                f"[red]Error executing tool {tool_name}:[/red]\n{error_trace}"
+            )
+            return f"Error executing tool {tool_name}:\n{error_trace}"
+
+    def _get_llm_response(self) -> Response:
+        """Get response from the language model"""
+        prompt = self._prepare_prompt()
+        self.console.print("\n[bold blue]Generated Prompt[/bold blue]")
+        self.console.print(Panel(prompt, border_style="blue"))
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Generating response..."),
+            console=self.console,
+            transient=True,
+            disable=False,
+        ) as progress:
+            _task = progress.add_task("", total=None)
+            llm_response = self.model.generate(prompt)
+
+        self.console.print("\n[bold green]LLM Response[/bold green]")
+        self.console.print(Panel(llm_response.content, border_style="green"))
+        self.console.input("[yellow]Press Enter to continue...[/yellow]")
+        return self._parse_response(llm_response.content)
+
+    def _get_user_approval(self, tool_name: str, action: Dict[str, Any]) -> bool:
+        """Get user approval for tool execution"""
+        self.console.print(
+            Panel.fit(
+                f"[yellow]Tool:[/yellow] {tool_name}\n[yellow]Actions:[/yellow] {action}",
+                title="Approval Required",
+                border_style="yellow",
+            )
+        )
+        return self.console.input("Approve (y/n)? ").lower().strip() == "y"
+
+    def _get_final_answer(self) -> str:
+        """Get the final answer from memory"""
+        last_memory = self.memory[-1] if self.memory else None
+        if last_memory and last_memory.answer:
+            return last_memory.answer
+        return "No answer found"
+
+    def _display_status(self) -> None:
+        """Display current agent status"""
+        self.console.rule("[bold blue]Agent Status")
+        self.console.print(
+            f"[yellow]Iteration:[/yellow] {self.current_iteration}/{self.max_iterations}"
+        )
+        self.console.print(f"[yellow]State:[/yellow] {self.state.value}")
+        self.console.rule()
+
+    def _prepare_prompt(self) -> str:
+        """Prepare prompt for LLM"""
+        last_memory = self.memory[-1] if self.memory else None
+        return query_template(
             query=self.query,
-            history=self.get_history(),
+            history=last_memory.model_dump_json(indent=2)
+            if last_memory
+            else "No history",
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
-            tools=tool_examples,
+            tools=self._available_tools_description("json"),
             output_format=output_format(),
         )
-        self._display_history()
-        response = self.ask_llm(prompt)
-        self.add_to_session_memory("assistant", f"Thought: {response.content}")
-        self.decide(response.content)
 
-    def extract(self, response: str) -> ET.Element:
-        """Extract and validate XML response."""
-        try:
-            response = response.strip()
-            response = self._clean_response(response)
-
-            root = ET.fromstring(response)
-
-            self._validate_root(root)
-            self._validate_response_content(root)
-
-            return root
-
-        except ET.ParseError as e:
-            # Attempt to fix the invalid XML using LLM
-            fixed_response = self.fix_invalid_xml(response)
-            if fixed_response:
-                try:
-                    root = ET.fromstring(fixed_response)
-                    self._validate_root(root)
-                    self._validate_response_content(root)
-                    # Add system message about the fix
-                    self.add_to_session_memory(
-                        "system", "Attempted to fix invalid XML response using LLM."
-                    )
-                    return root
-                except ET.ParseError as e_inner:
-                    # ...existing code...
-                    console.print("[error]Invalid XML format in response[/error]")
-                    console.print(
-                        Panel(response, title="Invalid Response", border_style="red")
-                    )
-                    logger.error(f"XML parse error: {str(e_inner)}")
-                    raise ValueError(
-                        "Response is not valid XML even after attempted fix. Please try again."
-                    ) from e_inner
-            else:
-                # ...existing code...
-                console.print("[error]Invalid XML format in response[/error]")
-                console.print(
-                    Panel(response, title="Invalid Response", border_style="red")
-                )
-                logger.error(f"XML parse error: {str(e)}")
-                raise ValueError("Response is not valid XML. Please try again.") from e
-
-    def fix_invalid_xml(self, response: str) -> Optional[str]:
-        """Use LLM to attempt to fix invalid XML responses."""
-        prompt = (
-            "The following response is not valid XML. Please correct it to be well-formed XML:\n\n"
-            f"{response}"
-        )
-        try:
-            fix_response = self.ask_llm(prompt)
-            return fix_response.content
-        except Exception as e:
-            logger.error(f"Failed to fix XML response: {str(e)}")
+    def _first_xml_code_block(self, input: str) -> str:
+        """Extract the first XML code block from the input string formatted in markdown using RegEx.
+        Args:
+            input (str): The input string
+        Returns:
+            str: The first XML content within the code block, or None if not found
+        """
+        match = re.search(r"```xml\s*([\s\S]*?)\s*```", input)
+        if not match:
             return None
+        return match.group(1)
 
-    def _clean_response(self, response: str) -> str:
-        """Clean the response string by extracting the first XML code block or the first code block."""
-        xml_pattern = re.compile(r"```xml\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
-        code_block_pattern = re.compile(r"```[\w]*\s*(.*?)\s*```", re.DOTALL)
+    def _parse_response(self, response: str) -> Response:
+        """Parse response from LLM"""
 
-        xml_match = xml_pattern.search(response)
-        if xml_match:
-            return xml_match.group(1).strip()
+        first_xml = self._first_xml_code_block(response)
 
-        code_match = code_block_pattern.search(response)
-        if code_match:
-            return code_match.group(1).strip()
+        if first_xml:
+            return ResponseParser.parse(first_xml)
 
-        return response.strip()
+        raise ValueError(f"No XML content found in response:\n {response}")
 
-    def _validate_root(self, root: ET.Element) -> None:
-        """Validate the root element of the XML."""
-        if root.tag != "response":
-            raise ValueError("Root element must be 'response'.")
+    def _available_tools_description(self, format: str) -> str:
+        """Get the description of all available tools in XML format."""
+        if format == "xml":
+            descriptions = [
+                PydanticToXMLSerializer.serialize(tool) for tool in self.tools.values()
+            ]
+            return "\n".join(descriptions)
+        if format == "json":
+            return {tool.name: tool.to_json() for tool in self.tools.values()}
 
-    def _validate_response_content(self, root: ET.Element) -> None:
-        """Validate the content of the XML response."""
-        thought = root.find("thought")
-        if thought is None or not thought.text:
-            raise ValueError("Response must contain a 'thought' element with content.")
+        raise ValueError(f"Unsupported format: {format}")
 
-        action = root.find("action")
-        answer = root.find("answer")
+    def _format_history(self) -> str:
+        """Format message history"""
+        return "\n".join(f"{msg.role}: {msg.content}" for msg in self.messages)
 
-        if action is not None:
-            self._validate_action(action)
-        elif answer is not None:
-            if not answer.text:
-                raise ValueError("'answer' element must contain text.")
-        else:
-            raise ValueError(
-                "Response must contain either 'action' or 'answer' element."
-            )
-
-    def _validate_action(self, action: ET.Element) -> None:
-        """Validate the action element of the XML."""
-        tool_name = action.find("tool_name")
-        reason = action.find("reason")
-
-        if tool_name is None or reason is None:
-            raise ValueError(
-                "Action element must contain 'tool_name' and 'reason' elements."
-            )
-
-        if tool_name.text.upper() not in self.tools:
-            console.print(f"[error]Unknown tool name: {tool_name.text}[/error]")
-            raise ValueError(f"Unknown tool name: {tool_name.text}")
-
-    def decide(self, response: str) -> None:
-        """Process the response and decide next action."""
-        try:
-            parsed_response = self.extract(response)
-
-            if parsed_response.find("action") is not None:
-                action = parsed_response.find("action")
-                tool_name = action.find("tool_name")
-
-                if tool_name is None or not tool_name.text:
-                    raise ValueError("Tool name is missing or empty")
-
-                tool_name_str = tool_name.text.upper()
-                if tool_name_str not in self.tools:
-                    raise ValueError(f"Unsupported tool: {tool_name_str}")
-
-                # Extract arguments
-                args = {}
-                arguments_elem = action.find("arguments")
-                if arguments_elem is not None:
-                    for arg in arguments_elem.findall("arg"):
-                        name = arg.find("name")
-                        value = arg.find("value")
-                        if (
-                            name is not None
-                            and value is not None
-                            and name.text
-                            and value.text
-                        ):
-                            args[name.text] = value.text
-
-                self.act(tool_name_str, args)
-
-            elif parsed_response.find("answer") is not None:
-                answer = parsed_response.find("answer")
-                if answer is None or not answer.text:
-                    raise ValueError("Answer element is empty")
-
-                answer_text = answer.text.strip()
-                self.add_to_session_memory("assistant", f"{answer_text}")
-
-            else:
-                self.add_to_session_memory(
-                    "system",
-                    "Response does not contain 'action' or 'answer'. Prompting agent to think again.",
-                )
-                self.think()
-
-        except Exception as e:
-            error_msg = f"Error processing response: {str(e)}"
-            console.print(f"[error]{error_msg}[/error]")
-            logger.error(error_msg)
-            self.add_to_session_memory("system", f"Error: {error_msg}")
-            if self.current_iteration < self.max_iterations:
-                self.think()
-
-    def act(self, tool_name: str, arguments: Dict[str, Any]) -> None:
-        """Execute a tool with the given arguments."""
-        tool = self.tools.get(tool_name)
-        if tool:
-            try:
-                # Convert argument types based on tool argument definitions
-                converted_args = self._convert_arguments(tool, arguments)
-
-                # Check if the tool needs validation
-                if tool.need_validation:
-                    # Create a nicely formatted panel showing the command details
-                    command_panel = Panel(
-                        f"""[bold]Command Details[/bold]
-Tool: {tool_name}
-Arguments: {converted_args}
-
-[italic]This command requires your permission to execute. Would you like to proceed?[/italic]
-""",
-                        title="🔒 Permission Required",
-                        border_style="yellow",
-                    )
-                    console.print(command_panel)
-
-                    # Ask for permission
-                    response = (
-                        input("\n[?] Please type 'y' to approve or 'n' to deny: ")
-                        .lower()
-                        .strip()
-                    )
-                    if response != "y":
-                        self.add_to_session_memory(
-                            "system",
-                            "Command execution cancelled by user.",
-                        )
-                        self.think()
-                        return
-
-                # Execute tool with converted arguments
-                result = tool.execute(**converted_args)
-                observation = f"Observation from {tool_name}: {result}"
-                self.add_to_session_memory(
-                    "tool_execution",
-                    f"Executed tool :\n'{tool_name}' with arguments:\n{converted_args}.\nResult:\n{observation}\n",
-                )
-                self.think()
-            except Exception as e:
-                error_msg = f"Error executing tool {tool_name}: {str(e)}"
-                console.print(f"[error]{error_msg}[/error]")
-                logger.error(error_msg)
-                self.add_to_session_memory("system", f"Error: {error_msg}")
-                self.think()
-        else:
-            logger.error(f"No tool registered for choice: {tool_name}")
-            self.think()
-
-    def _convert_arguments(
-        self, tool: Tool, arguments: dict[str, str]
-    ) -> dict[str, Any]:
-        """Convert arguments to their appropriate types based on tool argument definitions."""
-        converted = {}
-        type_converters = {
-            "string": str,
-            "int": int,
-            "float": float,
-            "bool": lambda x: x.lower() == "true",
-        }
-
-        for arg in tool.arguments:
-            if arg.name in arguments:
-                value = arguments[arg.name]
-                try:
-                    if arg.type in type_converters:
-                        converted[arg.name] = type_converters[arg.type](value)
-                    else:
-                        converted[arg.name] = value  # Keep as string if type unknown
-                except (ValueError, TypeError) as e:
-                    raise ValueError(
-                        f"Failed to convert argument '{arg.name}' to {arg.type}: {str(e)}"
-                    ) from e
-            elif arg.required:
-                raise ValueError(f"Missing required argument: {arg.name}")
-            elif arg.default is not None:
-                converted[arg.name] = arg.default
-
-        return converted
-
-    def execute(self, query: str) -> str:
-        """Execute the agent with a given query."""
-        try:
-            self.query = query
-            self.current_iteration = 0
-            self.messages = []
-            self.add_to_session_memory("user", f"Query: {query}")
-            self.think()
-
-            # Return the last answer from the session history
-            for msg in reversed(self.messages):
-                if msg.role == "assistant":
-                    return msg.content
-
-            return "Unable to provide an answer after maximum iterations."
-
-        except Exception as e:
-            logger.error(f"Error executing query: {str(e)}")
-            return f"An error occurred while processing your query: {str(e)}"
-
-    def ask_llm(self, prompt: str) -> ResponseStats:
-        """Get response from the language model."""
-        return self.model.generate(prompt)
+    def _add_to_memory(self, response_with_memory: ResponseWithActionResult) -> None:
+        """Add thought to memory"""
+        self.memory.append(response_with_memory)

@@ -1,5 +1,5 @@
-import os
 import datetime
+import os
 
 
 def output_format() -> str:
