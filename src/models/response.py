@@ -30,7 +30,6 @@ class Thought(BaseModel):
     """Represents the reasoning and planned actions of the agent."""
 
     reasoning: str = ""  # Set default empty string
-    plan: str = ""  # Set default empty string
     to_do: List[Step] = Field(
         default_factory=list, description="List of planned steps to address the query."
     )
@@ -52,6 +51,9 @@ class Action(BaseModel):
         default_factory=dict,
         description="Arguments needed for the tool, as key-value pairs.",
     )
+    result: Optional[str] = Field(
+        None, description="Summary of the result from executing this action."
+    )
 
 
 class Response(BaseModel):
@@ -59,32 +61,21 @@ class Response(BaseModel):
 
     thought: Optional[Thought] = None
     action: Optional[Action] = None
-    answer: Optional[str] = None
+    final_answer: Optional[str] = None
 
     @validator("*", pre=True)
     def validate_response(cls, v, values):
-        if "answer" in values and "action" in values:
-            if values["answer"] is None and values["action"] is None:
-                raise ValueError("Either answer or action must be present")
+        if (
+            "answer" in values
+            and "action" in values
+            and values["answer"] is None
+            and values["action"] is None
+        ):
+            raise ValueError("Either answer or action must be present")
         return v
 
     class Config:
         extra = Extra.allow  # Allow additional fields not defined in the model
-
-
-class ResponseWithActionResult(Response):
-    """Response model with additional action result field."""
-
-    action_result: Optional[str] = Field(
-        None,
-        description="The result of the action taken by the agent.",
-        validate_default=True,
-    )
-
-    @property
-    def formated_result(self) -> str:
-        """Return a formatted string of the action result"""
-        return str(self.action_result) if self.action_result is not None else ""
 
 
 # Example usage with logging

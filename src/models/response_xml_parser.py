@@ -73,28 +73,36 @@ class ResponseXmlParser:
         """Parse XML string to create a Response object."""
         try:
             root = etree.fromstring(xml_data)
-            
+
             # Check which format we're dealing with
-            if root.find("answer") is not None:
-                # Format 2 - Simple response with thought and answer
+            if root.find("final_answer") is not None:
+                # Format 2 - Simple response with thought and final answer
                 response_data = {
                     "thought": ResponseXmlParser._safe_find_text(root, "thought"),
-                    "answer": ResponseXmlParser._safe_find_text(root, "answer"),
+                    "final_answer": ResponseXmlParser._safe_find_text(
+                        root, "final_answer"
+                    ),
                 }
             else:
                 # Format 1 - Complex response with thought object and action
                 thought_elem = root.find("thought")
                 action_elem = root.find("action")
-                
+
                 response_data = {
                     "thought": {
-                        "reasoning": ResponseXmlParser._safe_find_text(thought_elem, "reasoning"),
+                        "reasoning": ResponseXmlParser._safe_find_text(
+                            thought_elem, "reasoning"
+                        ),
                         "to_do": ResponseXmlParser._parse_steps(thought_elem, "to_do"),
                         "done": ResponseXmlParser._parse_steps(thought_elem, "done"),
                     },
                     "action": {
-                        "tool_name": ResponseXmlParser._safe_find_text(action_elem, "tool_name", "no_tool"),
-                        "reason": ResponseXmlParser._safe_find_text(action_elem, "reason"),
+                        "tool_name": ResponseXmlParser._safe_find_text(
+                            action_elem, "tool_name", "no_tool"
+                        ),
+                        "reason": ResponseXmlParser._safe_find_text(
+                            action_elem, "reason"
+                        ),
                         "arguments": ResponseXmlParser._parse_arguments(action_elem),
                     },
                 }
@@ -158,7 +166,7 @@ if __name__ == "__main__":
     xml_example_2 = """
     <response>
         <thought><![CDATA[Based on the available information, I can answer directly.]]></thought>
-        <answer><![CDATA[Here is the final answer in Markdown format.]]></answer>
+        <final_answer><![CDATA[Here is the final answer in Markdown format.]]></final_answer>
     </response>
     """
 

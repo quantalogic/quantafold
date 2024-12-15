@@ -8,7 +8,19 @@ def output_format() -> str:
 ```xml
 <response>
     <thought>
-        <reasoning> ... bases on the query, history and observations explain your reasoning ...</reasoning>
+        <reasoning>
+            - Reformulate the goal
+            - Review the past Toughts in <history>, to see what has been done to achieve the goal
+            - Identify the next steps to take
+            - Rewrite the plan if necessary, including the steps from the previous iteration taken from <history>
+            - Provide reasoning for each step
+            - Ensure that the steps are in a logical order
+            - Clearly state the dependencies between steps
+            - Clearly state the final goal
+            - Ensure that the final goal is achievable with the steps provided
+            - Ensure that the final goal is a valid answer to the query
+            - Ensure that the final goal is clearly stated
+        </reasoning>
         <to_do>
             <!- list of the envisioned steps to do to answer the query -->
             <step>
@@ -25,6 +37,25 @@ def output_format() -> str:
             </step>
             <!-- Additional steps as needed -->
         </to_do>
+        <done>
+            <!-- list of the completed steps with results -->
+            <step>
+                <!-- name is mandatory, snake_case -->
+                <name>step_name</name>
+                <!-- description is mandatory -->
+                <description><![CDATA[description of the step]]></description>
+                <reason><![CDATA[explanation of why you chose this step]]></reason>
+                <!-- result is optional -->
+                <result><![CDATA[summary of the result]]></result>
+                <!-- depends_on_steps is optional -->
+                <depends_on_steps>
+                    <!-- list of the previous steps where result can be useful for this step -->
+                    <step_name>step_name</step_name>
+                    <!-- Additional step names as needed -->
+                </depends_on_steps>
+            </step>
+            <!-- Additional steps as needed -->
+        </done>
     </thought>
     <!-- action is mandatory with this format-->
     <action>
@@ -45,18 +76,21 @@ def output_format() -> str:
 </response>
 ```
 
-#### Format 2 - If you have enough information to answer, and all the steps are done:
-BEFORE USING THIS FORMAT, MAKE SURE YOU HAVE DONE ALL THE STEPS IN THE PLAN AND YOU HAVE ENOUGH INFORMATION TO ANSWER THE QUERY.
+#### Format 2 - Only use format this if the goal is completed, be sure to provide a final answer:
 ```xml
 <response>
     <!-- thought is mandatory -->
     <!-- use CDATA to handle special characters in thought and answer -->
     <thought><![CDATA[Your reasoning about why you can now answer the query]]></thought>
-    <!-- answer is mandatory -->
-    <!- answer is mandatory with this format-->
-    <answer><![CDATA[Your final answer to the query, prefer Markdown format if the format is not defined in the query]]></answer>
+    <!-- final_answer is mandatory -->
+    <!- final_answer is mandatory with this format-->
+    <final_answer><![CDATA[Your final answer to the query, prefer Markdown format if the format is not defined in the query]]></final_answer>
 </response>
 ```
+VERY IMPORTANT:
+
+- <action> or <final_answer> must be included in the response, but not both.
+- The response must be well-formed XML.
 
 DO NOT include any text before or after the XML object. The response must be well-formed XML.
 
@@ -95,13 +129,9 @@ Shell: {current_shell}
 
 ### Session History:
 
-<history><![CDATA[
+<history>
 {history}
-]]></history>
-
-<steps_done>
-<![CDATA[{done_steps}]]>
-</steps_done>
+</history>
 
 ### Context:
 

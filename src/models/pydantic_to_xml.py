@@ -13,6 +13,7 @@ class PydanticToXMLSerializer:
         include_declaration: bool = False,
         cdata_fields: Optional[List[str]] = None,
         auto_cdata: bool = False,  # New parameter for automatic CDATA wrapping
+        indent: int = 2,  # New parameter for indentation
     ) -> str:
         """Serialize a Pydantic model to an XML string with optional CDATA support."""
         root_name = (
@@ -85,14 +86,47 @@ class PydanticToXMLSerializer:
         # Build the XML structure
         build_xml(root, obj)
 
-        # Convert the XML structure to a string
-        xml_string = etree.tostring(root, encoding="unicode", pretty_print=pretty)
+        try:
+            # Initial conversion to string
+            xml_string = etree.tostring(
+                root, 
+                encoding="unicode", 
+                pretty_print=pretty,
+                xml_declaration=include_declaration,
+            )
 
-        if include_declaration:
-            # Include XML declaration at the top
-            xml_string = f'<?xml version="1.0" ?>\n{xml_string}'
+            if pretty:
+                # Create a safe parser
+                parser = etree.XMLParser(remove_blank_text=True, recover=True)
+                # Parse and reformat safely
+                try:
+                    elem = etree.fromstring(xml_string, parser)
+                    xml_string = etree.tostring(
+                        elem,
+                        encoding="unicode",
+                        pretty_print=True,
+                        xml_declaration=include_declaration,
+                    )
+                    # Apply custom indentation
+                    if indent != 2:
+                        lines = xml_string.splitlines()
+                        indented_lines = []
+                        for line in lines:
+                            if line.strip():
+                                # Count leading spaces
+                                spaces = len(line) - len(line.lstrip())
+                                # Replace with custom indentation
+                                new_indent = " " * (spaces // 2 * indent)
+                                indented_lines.append(new_indent + line.lstrip())
+                        xml_string = "\n".join(indented_lines)
+                except etree.XMLSyntaxError as e:
+                    # Fallback to non-pretty version if parsing fails
+                    print(f"Warning: Could not pretty print XML: {e}")
 
-        return xml_string
+            return xml_string
+            
+        except Exception as e:
+            raise ValueError(f"Failed to serialize to XML: {str(e)}") from e
 
 
 # Example Usage

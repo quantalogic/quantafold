@@ -89,7 +89,7 @@ def main() -> None:
 
     llm_agent_tool = LLMAgentTool(model=model)
 
-    #    agent.register(WikipediaTool())
+    agent.register(WikipediaTool())
     agent.register(ShellCommandTool())
     agent.register(FileReaderTool())
     agent.register(FileWriterTool())

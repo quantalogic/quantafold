@@ -85,15 +85,15 @@ class ResponseBs4XmlParser:
             )
 
             # Parse answer if present
-            answer = None
-            answer_elem = response_elem.find("answer")
+            final_answer = None
+            answer_elem = response_elem.find("final_answer")
             if answer_elem:
-                answer = answer_elem.text.strip()
+                final_answer = answer_elem.text.strip()
 
             # Create and return Response object
             return Response(
                 thought=thought,
-                answer=answer
+                final_answer=final_answer
             )
 
         except Exception as e:

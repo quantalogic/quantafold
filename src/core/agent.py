@@ -7,7 +7,7 @@ from typing import Any, Dict
 from core.agent_template import output_format, query_template
 from core.generative_model import GenerativeModel
 from models.pydantic_to_xml import PydanticToXMLSerializer
-from models.response import Action, Response, ResponseWithActionResult, Step
+from models.response import Action, Response, Step, Thought
 from models.response_parser import ResponseParser
 from models.tool import Tool
 from rich.console import Console
@@ -27,7 +27,9 @@ class Agent:
     def __init__(self, model: GenerativeModel, max_iterations: int = 20):
         self.model = model
         self.tools: dict[str, Tool] = {}
-        self.memory: list[ResponseWithActionResult] = []
+        self.memory: list[Response] = []
+        self.current_tought: Thought | None = None
+        self.to_do_steps: list[Step] = []
         self.done_steps: list[Step] = []
         self.query: str = ""
         self.max_iterations: int = max_iterations
@@ -56,6 +58,9 @@ class Agent:
         self.query = query
         self.messages = []
         self.memory = []
+        self.toughts = []
+        self.done_steps = []
+        self.to_do_steps = []
         self.current_iteration = 0
         self.state = AgentState.READY
 
@@ -95,7 +100,7 @@ class Agent:
         if not response.thought:
             raise ValueError("Response must contain a thought")
 
-        if response.answer is not None:
+        if response.final_answer is not None:
             self._add_to_memory(response)
             return False
 
@@ -103,20 +108,12 @@ class Agent:
             result = self._handle_action(response.action)
             # Convert result to string to ensure type compatibility
             result_str = str(result) if result is not None else None
-            response_with_memory = ResponseWithActionResult(
-                thought=response.thought,
-                action=response.action,
-                action_result=result_str,
-            )
-            self._add_to_memory(response_with_memory)
+            response.action_result = result_str
+            self._add_to_memory(response)
             return True
 
-        # If we get here, it means the response doesn't have an answer or action
-        # Let's create a default answer based on the thought
-        default_answer = f"Based on the thought: {response.thought.reasoning}"
-        response.answer = default_answer
         self._add_to_memory(response)
-        return False
+        return True
 
     def _handle_action(self, action: Action) -> str:
         """Handle tool execution"""
@@ -192,8 +189,8 @@ class Agent:
     def _get_final_answer(self) -> str:
         """Get the final answer from memory"""
         last_memory = self.memory[-1] if self.memory else None
-        if last_memory and last_memory.answer:
-            return last_memory.answer
+        if last_memory and last_memory.final_answer:
+            return last_memory.final_answer
         return "No answer found"
 
     def _display_status(self) -> None:
@@ -215,33 +212,24 @@ class Agent:
             remaining_iterations=self.max_iterations - self.current_iteration,
             tools=self._available_tools_description("json"),
             output_format=output_format(),
-            done_steps=self._format_past_steps("json"),
+            done_steps=self._format_past_steps("xml"),
         )
 
     def _format_chain_of_thought(self) -> str:
         """Format chain of thought in JSON format with pretty printing"""
-        if not self.memory:
-            return "No chain of thought"
+        if not self.current_tought:
+            return ""
 
-        content: list[str] = []
-        for i, thought in enumerate(self.memory):
-            content.append(f"touhgt_number: {i+1:03d}")
-            content.append(
-                f"thought:\n{PydanticToXMLSerializer.serialize(thought.thought)}"
-            )
-        history = "\n".join(content)
-        print("history", history)
-        return history
+        # return last Thought as XML
+        return PydanticToXMLSerializer.serialize(self.current_tought, pretty=True)
 
     def _format_history(self) -> str:
         """Format message history"""
         content: list[str] = []
-        for step in self.memory:
+        for i, step in enumerate(self.memory):
             content.append("-------------------")
-            content.append("assistant:")
-            content.append(step.model_dump_json(indent=2))
-            content.append("user:")
-            content.append("continue")
+            content.append(f"Iteration {i + 1}:")
+            content.append(PydanticToXMLSerializer.serialize(step, pretty=True))
             content.append("-------------------")
         return "\n".join(content)
 
@@ -303,7 +291,7 @@ class Agent:
 
         raise ValueError(f"Unsupported format: {format}")
 
-    def _add_to_memory(self, response: ResponseWithActionResult | Response) -> None:
+    def _add_to_memory(self, response: Response) -> None:
         """Add thought to memory"""
         current_step = (
             response.thought.to_do[0]
@@ -317,7 +305,35 @@ class Agent:
                     name=current_step_name,
                     description=current_step.description,
                     reason=current_step.reason,
-                    result=response.formated_result,
                 )
             )
+
+            self.done_steps.append(
+                Step(
+                    name=current_step_name,
+                    description=current_step.description,
+                    reason=current_step.reason,
+                )
+            )
+
+            ## Remove the current_step_name from to_do_steps
+            self.to_do_steps = [
+                step for step in self.to_do_steps if step.name != current_step_name
+            ]
+
+            ## add in to_do_steps all the steps that are not done
+            new_to_do_steps = [
+                step
+                for step in response.thought.to_do
+                if step.name != current_step_name
+            ]
+            ## add the new to_do_steps
+            self.to_do_steps.extend(new_to_do_steps)
+
+        self.current_tought = Thought(
+            reasoning=response.thought.reasoning,
+            to_do=self.to_do_steps,
+            done=self.done_steps,
+        )
+
         self.memory.append(response)
