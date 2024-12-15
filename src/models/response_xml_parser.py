@@ -1,6 +1,8 @@
-from typing import Optional, List
+from typing import List, Optional
+
 from lxml import etree
 from pydantic import ValidationError
+
 from .response import Response, Step
 
 
@@ -60,12 +62,10 @@ class ResponseXmlParser:
         if args_elem is None:
             return arguments
 
-        for arg in args_elem.findall("arg"):
-            if arg is not None:
-                name = ResponseXmlParser._safe_find_text(arg, "name")
-                value = ResponseXmlParser._safe_find_text(arg, "value")
-                if name:
-                    arguments[name] = value
+        # Parse all direct children of arguments element
+        for arg in args_elem:
+            if arg.tag is not None and arg.text is not None:
+                arguments[arg.tag] = arg.text
         return arguments
 
     @staticmethod
@@ -149,14 +149,8 @@ if __name__ == "__main__":
             <tool_name>data_collector</tool_name>
             <reason>Selected for its efficiency in gathering large data sets.</reason>
             <arguments>
-                <arg>
-                    <name>database</name>
-                    <value>main_db</value>
-                </arg>
-                <arg>
-                    <name>limit</name>
-                    <value>100</value>
-                </arg>
+                <argument1><![CDATA[main_db]]></argument1>
+                <argument2><![CDATA[100]]></argument2>
             </arguments>
         </action>
     </response>

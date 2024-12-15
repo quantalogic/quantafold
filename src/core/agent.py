@@ -214,6 +214,16 @@ class Agent:
             return last_memory.final_answer
         return "No answer found"
 
+    def _format_step_result_variables(self) -> str:
+        """Format step result variables in XML format."""
+        if not self.step_results:
+            return "No step results available."
+
+        content = []
+        for step_name, result in self.step_results.items():
+            content.append(f"<{step_name}>{result}</{step_name}>")
+        return "\n".join(content)
+
     def _display_status(self) -> None:
         """Display current agent status"""
         self.console.rule("[bold blue]Agent Status")
@@ -234,6 +244,7 @@ class Agent:
             tools=self._available_tools_description("xml"),
             output_format=output_format(),
             done_steps=self._format_past_steps("xml"),
+            step_result_variables=self._format_step_result_variables(),
         )
 
     def _format_chain_of_thought(self) -> str:
@@ -257,7 +268,6 @@ class Agent:
         """Format message history"""
         content: list[str] = []
         for i, step in enumerate(self.memory):
-            content.append("-------------------")
             content.append(f"Iteration {i + 1}:")
             content.append(PydanticToXMLSerializer.serialize(step, pretty=True))
             content.append("-------------------")

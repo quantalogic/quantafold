@@ -53,6 +53,24 @@ class ResponseBs4XmlParser:
         )
 
     @staticmethod
+    def _parse_arguments(action_elem) -> dict:
+        """Parse arguments from action element."""
+        arguments = {}
+        if not action_elem:
+            return arguments
+
+        args_elem = action_elem.find("arguments")
+        if not args_elem:
+            return arguments
+
+        # Parse direct argument children (argument1, argument2, etc.)
+        for arg in args_elem.children:
+            if arg.name and arg.string:  # Only process actual elements with content
+                arguments[arg.name] = arg.string.strip()
+
+        return arguments
+
+    @staticmethod
     def parse(xml_data: str) -> Response:
         """Parse XML string to create a Response object.
 
@@ -81,7 +99,7 @@ class ResponseBs4XmlParser:
                 reasoning=thought_text,
                 plan="",  # Default empty plan
                 to_do=[],  # Default empty to_do list
-                done=[]    # Default empty done list
+                done=[],  # Default empty done list
             )
 
             # Parse answer if present
@@ -90,10 +108,61 @@ class ResponseBs4XmlParser:
             if answer_elem:
                 final_answer = answer_elem.text.strip()
 
-            # Create and return Response object
+            # Check if this is a final answer format
+            final_answer_elem = response_elem.find("final_answer")
+            if final_answer_elem:
+                return Response(
+                    thought=Thought(
+                        reasoning=ResponseBs4XmlParser._get_text_or_cdata(thought_elem),
+                        to_do=[],
+                        done=[],
+                    ),
+                    final_answer=ResponseBs4XmlParser._get_text_or_cdata(
+                        final_answer_elem
+                    ),
+                )
+
+            # Otherwise parse the full format with action
+            action_elem = response_elem.find("action")
+            if not action_elem:
+                raise ValueError("Missing action element")
+
+            # Parse to_do and done steps
+            to_do_steps = []
+            done_steps = []
+
+            to_do_container = thought_elem.find("to_do")
+            if to_do_container:
+                to_do_steps = [
+                    ResponseBs4XmlParser._parse_step(step)
+                    for step in to_do_container.find_all("step")
+                ]
+
+            done_container = thought_elem.find("done")
+            if done_container:
+                done_steps = [
+                    ResponseBs4XmlParser._parse_step(step)
+                    for step in done_container.find_all("step")
+                ]
+
+            # Create action object
+            action = Action(
+                tool_name=action_elem.find("tool_name").get_text().strip(),
+                reason=ResponseBs4XmlParser._get_text_or_cdata(
+                    action_elem.find("reason")
+                ),
+                arguments=ResponseBs4XmlParser._parse_arguments(action_elem),
+            )
+
             return Response(
-                thought=thought,
-                final_answer=final_answer
+                thought=Thought(
+                    reasoning=ResponseBs4XmlParser._get_text_or_cdata(
+                        thought_elem.find("reasoning")
+                    ),
+                    to_do=to_do_steps,
+                    done=done_steps,
+                ),
+                action=action,
             )
 
         except Exception as e:
@@ -103,46 +172,40 @@ class ResponseBs4XmlParser:
 # Example usage
 if __name__ == "__main__":
     xml_example = """
-    <x>
-    XXX
     <response>
-    <thought>
-        <reasoning>Based on the analysis, the steps required are clear.</reasoning>
-        <to_do>
-            <step>
-                <n>gather_data</n>
-                <description>Collect relevant data from the database.</description>
-                <reason>Data is necessary for the analysis.</reason>
-                <r>Data gathered successfully.</r>
-                <depends_on>
-                    <step_name>initialize</step_name>
-                </depends_on>
-        </to_do>
-        <done>
-            <step>
-                <n>initialize</n>
-                <description>Initialize the database connection.</description>
-                <reason>Connection required to gather data.</reason>
-                <r>Database connection established.</r>
-                <depends_on/>
-            </step>
-        </done>
-    </thought>
-    <action>
-        <tool_name>data_collector</tool_name>
-        <reason>Selected for its efficiency in gathering large data sets.</reason>
-        <arguments>
-            <arg>
-                <name>database</name>
-                <value>main_db</value>
-            </arg>
-            <arg>
-                <name>limit</name>
-                <value>100</value>
-            </arg>
-        </arguments>
-    </action>
-</response>"""
+        <thought>
+            <reasoning>Based on the analysis, the steps required are clear.</reasoning>
+            <to_do>
+                <step>
+                    <name>gather_data</name>
+                    <description>Collect relevant data from the database.</description>
+                    <reason>Data is necessary for the analysis.</reason>
+                    <result>Data gathered successfully.</result>
+                    <depends_on_steps>
+                        <step_name>initialize</step_name>
+                    </depends_on_steps>
+                </step>
+            </to_do>
+            <done>
+                <step>
+                    <name>initialize</name>
+                    <description>Initialize the database connection.</description>
+                    <reason>Connection required to gather data.</reason>
+                    <result>Database connection established.</result>
+                    <depends_on_steps/>
+                </step>
+            </done>
+        </thought>
+        <action>
+            <tool_name>data_collector</tool_name>
+            <reason>Selected for its efficiency in gathering large data sets.</reason>
+            <arguments>
+                <argument1><![CDATA[main_db]]></argument1>
+                <argument2><![CDATA[100]]></argument2>
+            </arguments>
+        </action>
+    </response>
+    """
 
     try:
         response_obj = ResponseBs4XmlParser.parse(xml_example)

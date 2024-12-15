@@ -65,60 +65,26 @@ def output_format() -> str:
         <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
         <!-- arguments is mandatory -->
         <arguments>
-            <!-- arg is mandatory an must have name and value, multiple args are allowed -->
-            <arg>
-                <name>argument_name</name>
-                <!-- use CDATA to handle special characters in value -->
-                <value>![CDATA[ ... the value of the argument ... ]]</value>
-            </arg>
+            <argument1><![CDATA[ ... ]]></argument1>
+            <argument2><![CDATA[ ... ]]></argument2>
             <!-- Additional arguments as needed -->
+            ...
         </arguments>
     </action>
 </response>
 
-Example:
+Example for arguments:
 
-<response>
-    <thought>
-        <reasoning>
-            - Reformulate the goal
-            - Review the past Toughts in <history>, to see what has been done to achieve the goal
-        </reasoning>
-        <to_do>
-            <step>
-                <name>step_1</name>
-                <description><![CDATA[Do something]]></description>
-                <reason><![CDATA[Because I need to]]></reason>
-            </step>
-        </to_do>
-        <done>
-            <step>
-                <name>step_2</name>
-                <description><![CDATA[Did something]]></description>
-                <reason><![CDATA[Because I needed to]]></reason>
-                <result><![CDATA[Something was done]]></result>
-            </step>
-        </done>
-    </thought>
-    <action>
-        <tool_name>shell_command</tool_name>
-        <reason><![CDATA[To execute a command]]></reason>
-        <arguments>
-            <arg>
-                <name>command</name>
-                <value><![CDATA[ls -l /tmp]]></value>
-            </arg>
-        </arguments>
-    </action>
-</response>
-
+```xml
+<arguments>
+    <name><![CDATA[value]]></name>
+    <temperature><![CDATA[0.7]]></temperature>
+</arguments>
 ```
 
 #### Format 2 - Only use format this if the goal is completed, be sure to provide a final answer:
 ```xml
 <response>
-    <!-- thought is mandatory -->
-    <!-- use CDATA to handle special characters in thought and answer -->
     <thought><![CDATA[Your reasoning about why you can now answer the query]]></thought>
     <!-- final_answer is mandatory -->
     <!- final_answer is mandatory with this format-->
@@ -144,6 +110,7 @@ def query_template(
     tools: str,
     output_format: str,
     done_steps: str = "",
+    step_result_variables: str = "",
 ) -> str:
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     operating_system = os.uname().sysname
@@ -173,6 +140,10 @@ Shell: {current_shell}
 ]]>
 </available_tools>
 
+<available_step_result_variables>
+{step_result_variables}
+</available_step_results_variables>
+
 ### Instructions:
 
 1. Analyze the query, history and completed steps to determine the best course of action
@@ -180,13 +151,12 @@ Shell: {current_shell}
 3. Either:
    - Use a tool to gather more information, perform an action, or achieve the goal
    - Provide a final answer if you have sufficient information
+   - You can inject results from previous steps using the variables interpolated such as $$$step_name$$$ into tools arguments
+   - Available variables are defined in <available_step_result_variables> tag
 4. Response must be within {max_iterations} iterations
 5. Format response as valid XML using one of the formats below:
 6. If you need a tool and you get the information you need, vary the tool_name and arguments as needed
 
-### Output Format:
-
-{output_format}
 
 ### Session History:
 
@@ -198,5 +168,8 @@ Shell: {current_shell}
 
 - Current iteration: {current_iteration}/{max_iterations}
 - Remaining iterations: {remaining_iterations}
+
+### Output Format:
+{output_format}
 
 """

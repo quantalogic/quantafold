@@ -26,25 +26,32 @@ class FileWriterTool(Tool):
             ToolArgument(
                 name="file_path",
                 type="string",
-                description="The path to the file to write. The file_path cannot be empty.",
+                description="The absolute or relative path where the file should be written. If directories in the path don't exist, they will be created automatically.",
                 required=True,
             ),
             ToolArgument(
                 name="content",
                 type="string",
-                description="The content to write to the file. The content cannot be empty.",
+                description="""
+                            The text content to write to the file. Must not be empty.
+                            Supports dynamic content interpolation using $$$step_name$$$ syntax.
+                            Examples:
+                            - Simple text: 'Hello world'
+                            - With interpolation: 'Result: $$$step_1$$$'
+                            - Multiple interpolations: 'First: $$$step_1$$$, Second: $$$step_2$$$'
+                            """,
                 required=True,
             ),
             ToolArgument(
                 name="encoding",
                 type="string",
-                description="The encoding to use when writing the file.",
+                description="File encoding (e.g., 'utf-8', 'ascii', 'latin-1'). Defaults to UTF-8.",
                 default="utf-8",
             ),
             ToolArgument(
                 name="mode",
                 type="string",
-                description="The mode to open the file in ('w' for write, 'a' for append).",
+                description="File writing mode: 'w' to overwrite existing content, 'a' to append to existing content.",
                 default="w",
             ),
         ]

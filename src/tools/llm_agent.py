@@ -34,43 +34,47 @@ class LLMAgentTool(Tool):
             ToolArgument(
                 name="persona",
                 type="string",
-                description="A detailed description of the persona for the LLM Agent.",
+                description="Defines the personality, expertise, and tone the AI should adopt (e.g., 'expert physicist', 'creative writer').",
                 required=True,
             ),
             ToolArgument(
                 name="prompt",
                 type="string",
-                description="""
-                The prompt to send to the LLM Agent. It must include
-                all necessary information for the LLM Agent to generate
-                a response. As the agent as no access to prior conversation
-                memory, it is important to include all relevant information
-                in the context parameter.
-                It must be up to 20000 tokens in length.
-                """,
+                description="""The main instruction or question for the AI agent.
+                - Max length: 20,000 tokens
+                - Must be clear and specific
+                - Include all necessary context as there's no conversation memory
+                - Variable interpolation: Use $$$step_name$$$ to reference previous steps
+                - You MUST you use interpolation to inherit context from previous steps
+                Example: 'Analyze the results from $$$step_1$$$ and explain the key findings'""",
                 required=True,
             ),
             ToolArgument(
                 name="context",
                 type="string",
-                description="""
-                The context to include in the prompt for the LLM Agent.
-                This should include all relevant information for the LLM Agent
-                to generate a response. This content can be used to contextualize
-                the prompt. It can be up to 20000 tokens in length.
+                description="""Additional background information or data for the AI.
+                - Max length: 20,000 tokens
+                - Optional but recommended for better responses
+                - Supports variable interpolation: $$$step_name$$$
                 """,
                 required=False,
                 default="",
             ),
             ToolArgument(
                 name="temperature",
-                type="string",  # Keep as string to allow string input
-                description="""
-                The temperature for response generation (0.0 to 1.0).
-                0: no creavity
-                1: creative, but high risk of hallicantion or invented facts
-                """,
+                type="string",
+                description="""Controls response creativity and randomness (0.0 to 1.0):
+                - 0.0: Focused, deterministic, factual
+                - 0.3: Balanced, mostly factual
+                - 0.7: Creative but controlled (default)
+                - 1.0: Maximum creativity, higher risk of inaccuracies""",
                 default="0.7",
+            ),
+            ToolArgument(
+                name="step_results",
+                type="string",
+                description="A list of comma separeted step results to be used in the prompt.",
+                default=""
             ),
         ]
     )
