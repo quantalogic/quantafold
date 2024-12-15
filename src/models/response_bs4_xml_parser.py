@@ -147,6 +147,7 @@ class ResponseBs4XmlParser:
 
             # Create action object
             action = Action(
+                step_name=action_elem.find("step_name").get_text().strip(),
                 tool_name=action_elem.find("tool_name").get_text().strip(),
                 reason=ResponseBs4XmlParser._get_text_or_cdata(
                     action_elem.find("reason")

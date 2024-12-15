@@ -97,6 +97,9 @@ class ResponseXmlParser:
                         "done": ResponseXmlParser._parse_steps(thought_elem, "done"),
                     },
                     "action": {
+                        "step_name": ResponseXmlParser._safe_find_text(
+                            action_elem, "step_name"
+                        ),
                         "tool_name": ResponseXmlParser._safe_find_text(
                             action_elem, "tool_name", "no_tool"
                         ),

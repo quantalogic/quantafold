@@ -41,6 +41,10 @@ class Thought(BaseModel):
 class Action(BaseModel):
     """Represents the action to be carried out by the agent."""
 
+    step_name: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
+        ..., description="The name of the step to be executed."
+    )
+
     tool_name: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
         default="no_tool", description="The name of the tool to be used."
     )

@@ -45,8 +45,6 @@ def output_format() -> str:
                 <!-- description is mandatory -->
                 <description><![CDATA[description of the step]]></description>
                 <reason><![CDATA[explanation of why you chose this step]]></reason>
-                <!-- result is optional -->
-                <result><![CDATA[summary of the result]]></result>
                 <!-- depends_on_steps is optional -->
                 <depends_on_steps>
                     <!-- list of the previous steps where result can be useful for this step -->
@@ -59,18 +57,21 @@ def output_format() -> str:
     </thought>
     <!-- action is mandatory with this format-->
     <action>
-        <tool_name>EXACT_TOOL_NAME</tool_name>
-        <!-- use CDATA to handle special characters in reason and arguments -->
-        <!-- reason is mandatory -->
-        <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
-        <!-- arguments is mandatory -->
-        <arguments>
-            <argument1><![CDATA[ ... ]]></argument1>
-            <argument2><![CDATA[ ... ]]></argument2>
-            <!-- Additional arguments as needed -->
-            ...
-        </arguments>
-    </action>
+            <step_name>step_name</step_name>
+            <tool_name>EXACT_TOOL_NAME</tool_name>
+            <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
+            <arguments>
+                <!-- Variable interpolation allows referencing results from previous steps -->
+                <!-- Format: $step_name$ will be replaced with the output of that step -->
+                <!-- Examples:
+                     - $read_file_step$ : Gets content from a previous file read step
+                     - $api_response.data$ : Accesses the 'data' field from an API response
+                     - $extract_value.result$ : Gets the 'result' from an extraction step
+                -->
+                <argument1><![CDATA[Hello $previous_step$]]></argument1>
+                <argument2><![CDATA[Path: $file_read.path$]]></argument2>
+            </arguments>
+        </action>
 </response>
 
 Example for arguments:
@@ -140,23 +141,52 @@ Shell: {current_shell}
 ]]>
 </available_tools>
 
-<available_step_result_variables>
+### Variables from previous steps:
+
+<step_result_variables>
 {step_result_variables}
-</available_step_results_variables>
+</step_results_variables>
+
+### Using variables from previous steps:
+
+Variables from previous steps can be used in your tool arguments using $step_name$ syntax.
+For example:
+
+1. If a step named "get_weather" returned the value "sunny":
+
+    Example:
+    <step_result_variables>
+        <get_weather><![CDATA[sunny]]></get_weather>
+    </step_result_variables>
+    
+   - You can use $get_weather$ in your next tool arguments 
+   - It will be replaced with "sunny"
+
+2. Complete example with multiple variables:
+   ```xml
+   <action>
+       <tool_name>create_report</tool_name>
+       <reason><![CDATA[Generate weather report for user]]></reason>
+       <arguments>
+           <user><![CDATA[$get_user_name$]]></user>
+           <weather><![CDATA[$get_weather$]]></weather>
+           <temperature><![CDATA[$get_temperature$]]></temperature>
+       </arguments>
+   </action>
+   ```
 
 ### Instructions:
 
 1. Analyze the query, history and completed steps to determine the best course of action
 2. Create a structured plan if needed
-3. Either:
-   - Use a tool to gather more information, perform an action, or achieve the goal
-   - Provide a final answer if you have sufficient information
-   - You can inject results from previous steps using the variables interpolated such as $$$step_name$$$ into tools arguments
-   - Available variables are defined in <available_step_result_variables> tag
-4. Response must be within {max_iterations} iterations
-5. Format response as valid XML using one of the formats below:
-6. If you need a tool and you get the information you need, vary the tool_name and arguments as needed
+3. Take one of these actions:
+   a. Use a tool to gather information or perform an action
+   b. Provide final answer if goal is achieved
+   c. Use variables from previous steps in tool arguments
 
+4. Response must be within {max_iterations} iterations
+5. Format response as valid XML following the output format below
+6. Adapt tool usage based on results and needs
 
 ### Session History:
 
