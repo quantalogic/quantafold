@@ -158,7 +158,9 @@ class Agent:
         """Get response from the language model"""
         prompt = self._prepare_prompt()
         self.console.print("\n[bold blue]Generated Prompt[/bold blue]")
-        self.console.print(Panel(prompt, border_style="blue"))
+        prompt_without_format_instructions = prompt.replace(output_format(), "")
+        ## Remove content <available_tools> from prompt
+        self.console.print(Panel(prompt_without_format_instructions, border_style="blue"))
 
         with Progress(
             SpinnerColumn(),
