@@ -39,14 +39,15 @@ class LLMAgentTool(Tool):
             ),
             ToolArgument(
                 name="prompt",
-                type="string",
+                type="string", 
                 description="""The main instruction or question for the AI agent.
                 - Max length: 20,000 tokens
                 - Must be clear and specific
                 - Include all necessary context as there's no conversation memory
-                - Variable interpolation: Use $$$step_name$$$ to reference previous steps
-                - You MUST you use interpolation to inherit context from previous steps
-                Example: 'Analyze the results from $$$step_1$$$ and explain the key findings'""",
+                - Variable interpolation: References outputs from previous workflow steps using $step_name$ 
+                - Single interpolation: 'Analyze the text from $step_1$'
+                - Multiple interpolations: 'Compare reports from $step_1$ and $step_2$'
+                - Invalid references will be left as-is: '$invalid_step$'""",
                 required=True,
             ),
             ToolArgument(
@@ -55,7 +56,8 @@ class LLMAgentTool(Tool):
                 description="""Additional background information or data for the AI.
                 - Max length: 20,000 tokens
                 - Optional but recommended for better responses
-                - Supports variable interpolation: $$$step_name$$$
+                - Supports all interpolation features described in prompt parameter
+                - Example: 'Analysis: $step_1$\nMetadata: $step_2$'
                 """,
                 required=False,
                 default="",
@@ -69,12 +71,6 @@ class LLMAgentTool(Tool):
                 - 0.7: Creative but controlled (default)
                 - 1.0: Maximum creativity, higher risk of inaccuracies""",
                 default="0.7",
-            ),
-            ToolArgument(
-                name="step_results",
-                type="string",
-                description="A list of comma separeted step results to be used in the prompt.",
-                default=""
             ),
         ]
     )

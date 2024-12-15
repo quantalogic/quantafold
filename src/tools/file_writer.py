@@ -34,11 +34,14 @@ class FileWriterTool(Tool):
                 type="string",
                 description="""
                             The text content to write to the file. Must not be empty.
-                            Supports dynamic content interpolation using $$$step_name$$$ syntax.
-                            Examples:
-                            - Simple text: 'Hello world'
-                            - With interpolation: 'Result: $$$step_1$$$'
-                            - Multiple interpolations: 'First: $$$step_1$$$, Second: $$$step_2$$$'
+                            Interpolation allows inserting results from previous steps using $step_name$ format:
+                            
+                            - Basic: 'Hello world'
+                            - Single variable: 'The result is: $step_1$'
+                            - Multiple variables: '$step_1$ + $step_2$ = $step_3$'
+                            - Named steps: 'Data from $fetch_data$ processed by $transform$'
+                            
+                            Note: Step names must match exactly with defined step IDs.
                             """,
                 required=True,
             ),

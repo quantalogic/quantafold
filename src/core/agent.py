@@ -140,17 +140,6 @@ class Agent:
                 valid_key = key.replace("-", "_").replace(" ", "_")
                 named_args[valid_key] = value
 
-            if tool.need_parent_context:
-                self.console.print("[bold blue]Parent Context[/bold blue]")
-                self.console.print(
-                    Panel(
-                        self._format_step_results(),
-                        border_style="blue",
-                        title="Previous Steps Results",
-                    )
-                )
-                named_args["parent_context"] = self._format_step_results()
-
             self.console.print(
                 Panel.fit(
                     f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {named_args}",
@@ -221,7 +210,7 @@ class Agent:
 
         content = []
         for step_name, result in self.step_results.items():
-            content.append(f"<{step_name}>{result}</{step_name}>")
+            content.append(f"   <{step_name}>{result}</{step_name}>")
         return "\n".join(content)
 
     def _display_status(self) -> None:
@@ -264,11 +253,18 @@ class Agent:
             content.append("```")
         return "\n".join(content)
 
-    def _format_history(self) -> str:
-        """Format message history"""
+    def _format_history(self, last_n: int = 3) -> str:
+        """Format message history
+        Args:
+            last_n (int, optional): Number of last iterations to return. Defaults to None (all iterations).
+        Returns:
+            str: Formatted history as XML string
+        """
         content: list[str] = []
-        for i, step in enumerate(self.memory):
-            content.append(f"Iteration {i + 1}:")
+        memory_items = self.memory[-last_n:] if last_n else self.memory
+
+        for i, step in enumerate(memory_items):
+            content.append(f"Iteration {len(self.memory) - len(memory_items) + i + 1}:")
             content.append(PydanticToXMLSerializer.serialize(step, pretty=True))
             content.append("-------------------")
         return "\n".join(content)
