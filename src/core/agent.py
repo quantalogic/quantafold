@@ -164,11 +164,12 @@ class Agent:
         """Get response from the language model"""
         prompt = self._prepare_prompt()
         self.console.print("\n[bold blue]Generated Prompt[/bold blue]")
-        prompt_without_format_instructions = prompt.replace(output_format(), "")
+        prompt_for_display = prompt.replace(output_format(), "")
         ## Remove content <available_tools> from prompt
-        self.console.print(
-            Panel(prompt_without_format_instructions, border_style="blue")
+        prompt_for_display = prompt_for_display.replace(
+            self._available_tools_description("xml"), ""
         )
+        self.console.print(Panel(prompt_for_display, border_style="blue"))
 
         with Progress(
             SpinnerColumn(),
@@ -202,6 +203,48 @@ class Agent:
         if last_memory and last_memory.final_answer:
             return last_memory.final_answer
         return "No answer found"
+
+
+        """Format step result variables in XML format."""
+        if not self.step_results:
+            return "No step results available."
+
+        ## Get current thought
+        current_thought = self.memory[-1].thought if self.memory else None
+        if not current_thought:
+            return "No step results available."
+
+        print("---> Current Thought:")
+        print(current_thought)
+        input("Press Enter to continue...")
+
+        ## Get first to_do step
+        current_step = current_thought.to_do[0] if current_thought.to_do else None
+        if not current_step:
+            return "No step results available."
+
+        print("---> Current Step:")
+        print(current_step)
+        input("Press Enter to continue...")
+
+        ## Get depends on steps list for the current step
+        depends_on_steps = (
+            current_step.depends_on_steps if current_step.depends_on_steps else []
+        )
+
+        # Always include the last step in the list of dependencies
+        depends_on_steps.append(current_step.name)
+
+        print("---> Depends on Steps:")
+        print(depends_on_steps)
+        input("Press Enter to continue...")
+
+        content = []
+        for step_name, result in self.step_results.items():
+            if step_name in depends_on_steps:
+                content.append(f"   <{step_name}>{result}</{step_name}>")
+
+        return "\n".join(content)
 
     def _format_step_result_variables(self) -> str:
         """Format step result variables in XML format."""
@@ -253,7 +296,7 @@ class Agent:
             content.append("```")
         return "\n".join(content)
 
-    def _format_history(self, last_n: int = 3) -> str:
+    def _format_history(self, last_n: int = 1) -> str:
         """Format message history
         Args:
             last_n (int, optional): Number of last iterations to return. Defaults to None (all iterations).
