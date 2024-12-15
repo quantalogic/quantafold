@@ -46,6 +46,7 @@ def output_format() -> str:
 ```
 
 #### Format 2 - If you have enough information to answer, and all the steps are done:
+BEFORE USING THIS FORMAT, MAKE SURE YOU HAVE DONE ALL THE STEPS IN THE PLAN AND YOU HAVE ENOUGH INFORMATION TO ANSWER THE QUERY.
 ```xml
 <response>
     <!-- thought is mandatory -->
@@ -76,7 +77,6 @@ def query_template(
     operating_system = os.uname().sysname
     current_shell = os.environ.get("SHELL", "N/A")
     return f"""
-
 # Goal to achieve:
 
 You are a ReAct (Reasoning and Acting) agent tasked to achieve the following goal:
@@ -99,20 +99,16 @@ Shell: {current_shell}
 {history}
 ]]></history>
 
-<steps_done><!CDATA[
-{done_steps}
-]]>
+<steps_done>
+<![CDATA[{done_steps}]]>
 </steps_done>
 
-### Context
+### Context:
 
-- Current iteration: {current_iteration}
-- Max iterations: {max_iterations}
-- You have {remaining_iterations} iterations left.
+- Current iteration: {current_iteration}/{max_iterations}
+- Remaining iterations: {remaining_iterations}
 
-### Available tools:
-
-Here are examples of how to use the available tools:
+### Available Tools:
 
 <available_tools>
 <![CDATA[
@@ -122,10 +118,13 @@ Here are examples of how to use the available tools:
 
 ### Instructions:
 
-1. Analyze the query, previous reasoning steps, and observations in history and decide on the best course of action to answer it accurately.
-2. Decide on the next action: use a tool or provide a final answer.
-3. You must answer in less than {max_iterations} iterations.
-4. You MUST respond with ONLY a valid XML object in one of these two formats:
+1. Analyze the query, history and completed steps to determine the best course of action
+2. Create a structured plan if needed
+3. Either:
+   - Use a tool to gather more information
+   - Provide a final answer if you have sufficient information
+4. Response must be within {max_iterations} iterations
+5. Format response as valid XML using one of the formats below:
 
 ### Output Format:
 

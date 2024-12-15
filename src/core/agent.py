@@ -209,7 +209,7 @@ class Agent:
         """Prepare prompt for LLM"""
         return query_template(
             query=self.query,
-            history=self._format_chain_of_thought(),
+            history=self._format_history(),
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
@@ -223,13 +223,27 @@ class Agent:
         if not self.memory:
             return "No chain of thought"
 
-        return [
-            {
-                "thought_number": f"{i+1:03d}",
-                "tought": memory.thought.model_dump_json(indent=2),
-            }
-            for i, memory in enumerate(self.memory)
-        ]
+        content: list[str] = []
+        for i, thought in enumerate(self.memory):
+            content.append(f"touhgt_number: {i+1:03d}")
+            content.append(
+                f"thought:\n{PydanticToXMLSerializer.serialize(thought.thought)}"
+            )
+        history = "\n".join(content)
+        print("history", history)
+        return history
+
+    def _format_history(self) -> str:
+        """Format message history"""
+        content: list[str] = []
+        for step in self.memory:
+            content.append("-------------------")
+            content.append("assistant:")
+            content.append(step.model_dump_json(indent=2))
+            content.append("user:")
+            content.append("continue")
+            content.append("-------------------")
+        return "\n".join(content)
 
     def _format_past_steps(self, format: str) -> str:
         """Format past steps in XML or JSON format with pretty printing"""
@@ -289,15 +303,11 @@ class Agent:
 
         raise ValueError(f"Unsupported format: {format}")
 
-    def _format_history(self) -> str:
-        """Format message history"""
-        return "\n".join(f"{msg.role}: {msg.content}" for msg in self.messages)
-
-    def _add_to_memory(self, response_with_memory: ResponseWithActionResult) -> None:
+    def _add_to_memory(self, response: ResponseWithActionResult | Response) -> None:
         """Add thought to memory"""
         current_step = (
-            response_with_memory.thought.to_do[0]
-            if response_with_memory.thought and response_with_memory.thought.to_do
+            response.thought.to_do[0]
+            if response.thought and response.thought.to_do
             else None
         )
         current_step_name = current_step.name if current_step else None
@@ -307,7 +317,7 @@ class Agent:
                     name=current_step_name,
                     description=current_step.description,
                     reason=current_step.reason,
-                    result=response_with_memory.formated_result,
+                    result=response.formated_result,
                 )
             )
-        self.memory.append(response_with_memory)
+        self.memory.append(response)
