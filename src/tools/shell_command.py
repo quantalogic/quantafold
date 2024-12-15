@@ -58,7 +58,14 @@ class ShellCommandTool(Tool):
                 timeout=int(timeout),
             )
             logger.info(f"Executed command successfully: {command}")
-            return result.stdout.strip()
+
+            content: list[str] = []
+
+            content.append("Executed command successfully: {command}.")
+            content.append("Output:")
+            content.append(result.stdout.strip())
+            return content
+
         except subprocess.CalledProcessError as e:
             error_msg = f"Command failed with exit code {e.returncode}. Error output: {e.stderr.strip()}"
             logger.error(error_msg)

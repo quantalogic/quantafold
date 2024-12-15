@@ -31,6 +31,7 @@ class Agent:
         self.current_tought: Thought | None = None
         self.to_do_steps: list[Step] = []
         self.done_steps: list[Step] = []
+        self.step_results: dict[str, str] = {}
         self.query: str = ""
         self.max_iterations: int = max_iterations
         self.current_iteration: int = 0
@@ -60,6 +61,7 @@ class Agent:
         self.memory = []
         self.toughts = []
         self.done_steps = []
+        self.step_results = {}  # Changed from dict[str, str] to {}
         self.to_do_steps = []
         self.current_iteration = 0
         self.state = AgentState.READY
@@ -126,32 +128,47 @@ class Agent:
         if tool.need_validation and not self._get_user_approval(tool_name, action):
             return "Action not approved by user"
 
-        # Initialize parent_context variable
-        parent_context_list: list[str] = []
-
-        arguments = action.arguments.copy()
-
         if tool.need_parent_context:
-            for step_result in self.step_results:
-                parent_context_list.append(step_result.model_dump_json(indent=2))
-                arguments["parent_context"] = "\n".join(parent_context_list)
+            parent_context = self._format_step_results()
+            action.arguments["parent_context"] = parent_context
 
         try:
+            # Convert dictionary arguments to named arguments
+            named_args = {}
+            for key, value in action.arguments.items():
+                # Ensure the key is a valid Python identifier
+                valid_key = key.replace("-", "_").replace(" ", "_")
+                named_args[valid_key] = value
+
+            if tool.need_parent_context:
+                self.console.print("[bold blue]Parent Context[/bold blue]")
+                self.console.print(
+                    Panel(
+                        self._format_step_results(),
+                        border_style="blue",
+                        title="Previous Steps Results",
+                    )
+                )
+                named_args["parent_context"] = self._format_step_results()
+
             self.console.print(
                 Panel.fit(
-                    f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {arguments}",
+                    f"[bold cyan]Executing tool:[/bold cyan] {tool_name}\n[yellow]Arguments:[/yellow] {named_args}",
                     title="Tool Execution",
                     border_style="cyan",
                 )
             )
-            result = tool.execute(**arguments)
-            self.console.print(f"[green]Tool execution result:[/green] {result}")
+
+            result = tool.execute(**named_args)
+            self.console.print(f"[green]🛠️ Tool execution result:[/green] {result}")
+            input("Press Enter to continue...")
             return result
         except Exception:
             error_trace = traceback.format_exc()
             self.console.print(
                 f"[red]Error executing tool {tool_name}:[/red]\n{error_trace}"
             )
+            input("Press Enter to continue...")
             return f"Error executing tool {tool_name}:\n{error_trace}"
 
     def _get_llm_response(self) -> Response:
@@ -160,7 +177,9 @@ class Agent:
         self.console.print("\n[bold blue]Generated Prompt[/bold blue]")
         prompt_without_format_instructions = prompt.replace(output_format(), "")
         ## Remove content <available_tools> from prompt
-        self.console.print(Panel(prompt_without_format_instructions, border_style="blue"))
+        self.console.print(
+            Panel(prompt_without_format_instructions, border_style="blue")
+        )
 
         with Progress(
             SpinnerColumn(),
@@ -212,7 +231,7 @@ class Agent:
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
-            tools=self._available_tools_description("json"),
+            tools=self._available_tools_description("xml"),
             output_format=output_format(),
             done_steps=self._format_past_steps("xml"),
         )
@@ -224,6 +243,15 @@ class Agent:
 
         # return last Thought as XML
         return PydanticToXMLSerializer.serialize(self.current_tought, pretty=True)
+
+    def _format_step_results(self) -> str:
+        content: list[str] = []
+        for step_name, result in self.step_results.items():
+            content.append(f"Step: {step_name}")
+            content.append("```")
+            content.append(result)
+            content.append("```")
+        return "\n".join(content)
 
     def _format_history(self) -> str:
         """Format message history"""
@@ -285,7 +313,8 @@ class Agent:
         """Get the description of all available tools in XML format."""
         if format == "xml":
             descriptions = [
-                PydanticToXMLSerializer.serialize(tool) for tool in self.tools.values()
+                PydanticToXMLSerializer.serialize(tool, pretty=True)
+                for tool in self.tools.values()
             ]
             return "\n".join(descriptions)
         if format == "json":
@@ -309,6 +338,7 @@ class Agent:
                     reason=current_step.reason,
                 )
             )
+            self.step_results[current_step_name] = response.action_result
 
             self.done_steps.append(
                 Step(

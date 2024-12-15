@@ -12,7 +12,7 @@ class PydanticToXMLSerializer:
         lowercase: bool = False,
         include_declaration: bool = False,
         cdata_fields: Optional[List[str]] = None,
-        auto_cdata: bool = False,  # New parameter for automatic CDATA wrapping
+        auto_cdata: bool = True,  # New parameter for automatic CDATA wrapping
         indent: int = 2,  # New parameter for indentation
     ) -> str:
         """Serialize a Pydantic model to an XML string with optional CDATA support."""

@@ -68,12 +68,50 @@ def output_format() -> str:
             <!-- arg is mandatory an must have name and value, multiple args are allowed -->
             <arg>
                 <name>argument_name</name>
-                <value><![CDATA[argument_value]]></value>
+                <!-- use CDATA to handle special characters in value -->
+                <value>![CDATA[ ... the value of the argument ... ]]</value>
             </arg>
             <!-- Additional arguments as needed -->
         </arguments>
     </action>
 </response>
+
+Example:
+
+<response>
+    <thought>
+        <reasoning>
+            - Reformulate the goal
+            - Review the past Toughts in <history>, to see what has been done to achieve the goal
+        </reasoning>
+        <to_do>
+            <step>
+                <name>step_1</name>
+                <description><![CDATA[Do something]]></description>
+                <reason><![CDATA[Because I need to]]></reason>
+            </step>
+        </to_do>
+        <done>
+            <step>
+                <name>step_2</name>
+                <description><![CDATA[Did something]]></description>
+                <reason><![CDATA[Because I needed to]]></reason>
+                <result><![CDATA[Something was done]]></result>
+            </step>
+        </done>
+    </thought>
+    <action>
+        <tool_name>shell_command</tool_name>
+        <reason><![CDATA[To execute a command]]></reason>
+        <arguments>
+            <arg>
+                <name>command</name>
+                <value><![CDATA[ls -l /tmp]]></value>
+            </arg>
+        </arguments>
+    </action>
+</response>
+
 ```
 
 #### Format 2 - Only use format this if the goal is completed, be sure to provide a final answer:
@@ -127,17 +165,6 @@ Current date: {current_date}
 Operating System: {operating_system}
 Shell: {current_shell}
 
-### Session History:
-
-<history>
-{history}
-</history>
-
-### Context:
-
-- Current iteration: {current_iteration}/{max_iterations}
-- Remaining iterations: {remaining_iterations}
-
 ### Available Tools:
 
 <available_tools>
@@ -151,12 +178,25 @@ Shell: {current_shell}
 1. Analyze the query, history and completed steps to determine the best course of action
 2. Create a structured plan if needed
 3. Either:
-   - Use a tool to gather more information
+   - Use a tool to gather more information, perform an action, or achieve the goal
    - Provide a final answer if you have sufficient information
 4. Response must be within {max_iterations} iterations
 5. Format response as valid XML using one of the formats below:
+6. If you need a tool and you get the information you need, vary the tool_name and arguments as needed
 
 ### Output Format:
 
 {output_format}
+
+### Session History:
+
+<history>
+{history}
+</history>
+
+### Context:
+
+- Current iteration: {current_iteration}/{max_iterations}
+- Remaining iterations: {remaining_iterations}
+
 """

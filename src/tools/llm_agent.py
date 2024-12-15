@@ -91,23 +91,22 @@ class LLMAgentTool(Tool):
         prompt: str,
         context: str = "",
         temperature: str = "0.7",
-        parent_context: str = "",
     ) -> str:
         """Generate a response using the LLM Agent with specified persona."""
         if not prompt.strip():
             logger.error("Prompt cannot be empty or whitespace.")
-            return "Error: Prompt cannot be empty."
+            raise ValueError("Error: Prompt cannot be empty.")
 
         if not persona.strip():
             logger.error("Persona cannot be empty or whitespace.")
-            return "Error: Persona cannot be empty."
+            raise ValueError("Error: Persona cannot be empty.")
 
         try:
             # Convert temperature string to float
             temp_value = float(temperature)
             if not 0.0 <= temp_value <= 1.0:
                 logger.error(f"Temperature {temp_value} out of valid range (0.0-1.0)")
-                return "Error: Temperature must be between 0.0 and 1.0"
+                raise ValueError("Error: Temperature must be between 0.0 and 1.0")
 
             # Update model temperature
             self._model.temperature = temp_value
@@ -116,20 +115,12 @@ class LLMAgentTool(Tool):
             self._model.role = persona
 
             # Generate response
-            full_prompt = (
-                f"Parent Contex: {parent_context}\nContext:\n{context}\nQuery: {prompt}"
-            )
-            print("Agent Prompt:")
-            print(full_prompt)
+            full_prompt = f"Context:\n{context}\nQuery: {prompt}"
             response = self._model.generate(full_prompt)
 
             logger.info("Successfully generated response for prompt with persona")
             return response.content
 
-        except ValueError as e:
-            error_msg = f"Invalid temperature value: {str(e)}"
-            logger.error(error_msg)
-            return f"Error: {error_msg}"
         except Exception as e:
             error_msg = f"Error generating response: {str(e)}"
             logger.error(error_msg)

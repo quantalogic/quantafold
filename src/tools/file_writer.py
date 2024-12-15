@@ -26,13 +26,13 @@ class FileWriterTool(Tool):
             ToolArgument(
                 name="file_path",
                 type="string",
-                description="The path to the file to write.",
+                description="The path to the file to write. The file_path cannot be empty.",
                 required=True,
             ),
             ToolArgument(
                 name="content",
                 type="string",
-                description="The content to write to the file.",
+                description="The content to write to the file. The content cannot be empty.",
                 required=True,
             ),
             ToolArgument(
@@ -60,11 +60,17 @@ class FileWriterTool(Tool):
         """Write content to a file."""
         if not file_path.strip():
             logger.error("File path cannot be empty or whitespace.")
-            return "Error: File path cannot be empty."
+            raise ValueError("Error: file_path parameter cannot be empty.")
 
         if mode not in ["w", "a"]:
             logger.error(f"Invalid mode: {mode}. Must be 'w' or 'a'.")
-            return "Error: Invalid file mode. Use 'w' for write or 'a' for append."
+            raise ValueError(
+                "Error: Invalid file mode parameter. Use 'w' for write or 'a' for append."
+            )
+
+        if not content.strip():
+            logger.error("Content cannot be empty or whitespace.")
+            raise ValueError("Error: content parameter cannot be empty")
 
         try:
             file_path = Path(file_path)
