@@ -15,6 +15,7 @@ wikipedia = "^1.4.0"
 rich = "^13.9.4"
 beautifulsoup4 = "^4.12.3"
 lxml = "^5.3.0"
+duckduckgo-search = "^6.4.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"

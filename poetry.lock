@@ -369,6 +369,25 @@ files = [
 ]
 
 [[package]]
+name = "duckduckgo-search"
+version = "6.4.1"
+description = "Search for words, documents, images, news, maps and text translation using the DuckDuckGo.com search engine."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "duckduckgo_search-6.4.1-py3-none-any.whl", hash = "sha256:d4bcb072a5ee5a28e1c29eb46ccec8a76b3b60093d438a9767e291ea08096450"},
+    {file = "duckduckgo_search-6.4.1.tar.gz", hash = "sha256:a18ece766b2ade62886e1b411d4c01c099544cc6758d4a568892f79c26659085"},
+]
+
+[package.dependencies]
+click = ">=8.1.7"
+primp = ">=0.8.3"
+
+[package.extras]
+dev = ["mypy (>=1.11.1)", "pytest (>=8.3.1)", "pytest-asyncio (>=0.23.8)", "ruff (>=0.6.1)"]
+lxml = ["lxml (>=5.2.2)"]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.2.2"
 description = "Backport of PEP 654 (exception groups)"
@@ -1268,6 +1287,27 @@ files = [
 [package.extras]
 dev = ["pre-commit", "tox"]
 testing = ["pytest", "pytest-benchmark"]
+
+[[package]]
+name = "primp"
+version = "0.9.0"
+description = "HTTP client that can impersonate web browsers, mimicking their headers and `TLS/JA3/JA4/HTTP2` fingerprints"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "primp-0.9.0-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:5933a2ca7e8da3265a1a64f6faf5183d03175c2054fbfd30c70146e24162be05"},
+    {file = "primp-0.9.0-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:440ab0afedf5a516a114bc36a83570001e2c571cefb80547bbb2e1302f8a2302"},
+    {file = "primp-0.9.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:55fd3978d5ba5bf55d01c9bd0716ba36413860d59d1be8ddd5871bbce01f65a6"},
+    {file = "primp-0.9.0-cp38-abi3-manylinux_2_34_aarch64.whl", hash = "sha256:6478587da195c09118018436446db5a9fb436be38f95faee1738e7046bbc72fb"},
+    {file = "primp-0.9.0-cp38-abi3-manylinux_2_34_armv7l.whl", hash = "sha256:9c090616aa19101c0e7405ff332f10270d2515d4f92905e899e869060c08b445"},
+    {file = "primp-0.9.0-cp38-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:84a089187f3b997829f5787ec554fb3ee6b4b26de762b7d136cfc0329252a35b"},
+    {file = "primp-0.9.0-cp38-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:c7722b24cc639abd781527d7f87f6adfe70d2cfdd5de3838966fb99c218d56ce"},
+    {file = "primp-0.9.0-cp38-abi3-win_amd64.whl", hash = "sha256:b8f4d04e8b3c4073a61efd8ed65a1ed5aa8ca689569c4de0ebe795285fd002d2"},
+    {file = "primp-0.9.0.tar.gz", hash = "sha256:fb348bd5496bddeb6502103238a0028551ed46d67b7bc9374ff7ad7443ca712a"},
+]
+
+[package.extras]
+dev = ["certifi", "pytest (>=8.1.1)"]
 
 [[package]]
 name = "propcache"
@@ -2223,4 +2263,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "9bc613e22c59d69360e89af3a65f2fc6fb771c0365fd625668b25eeb4a01392f"
+content-hash = "ec069704a318f7324ba5607ba3ef96c8948c6bbdede6b805a3c5d35b8f35322d"

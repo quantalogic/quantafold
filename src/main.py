@@ -12,6 +12,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.theme import Theme
 from tools.display_content import DisplayContentTool
+from tools.duckduckgo import DuckDuckGoSearchTool
 from tools.file_reader import FileReaderTool
 from tools.file_tree import FileTreeTool
 from tools.file_writer import FileWriterTool
@@ -59,8 +60,7 @@ MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
 # MODEL_NAME = "lm_studio/gemma-2-27b-it"
 
 
-litellm.set_verbose=False
-
+litellm.set_verbose = False
 
 
 def get_multiline_input() -> str:
@@ -100,6 +100,7 @@ def main() -> None:
     agent.register(WikipediaTool())
     agent.register(DisplayContentTool())
     agent.register(FileTreeTool())
+    agent.register(DuckDuckGoSearchTool())
 
     # Build tool descriptions for welcome message
     tool_descriptions = "".join(
