@@ -13,7 +13,8 @@ class PydanticToXMLSerializer:
         include_declaration: bool = False,
         cdata_fields: Optional[List[str]] = None,
         auto_cdata: bool = True,  # New parameter for automatic CDATA wrapping
-        indent: int = 2,  # New parameter for indentation
+        indent: int = 2,          # New parameter for indentation
+        list_item_names: Optional[dict] = None,  # New parameter for custom list item names
     ) -> str:
         """Serialize a Pydantic model to an XML string with optional CDATA support."""
         root_name = (
@@ -21,13 +22,16 @@ class PydanticToXMLSerializer:
         )
         root = etree.Element(root_name)
 
+        if list_item_names is None:
+            list_item_names = {}
+
         def needs_cdata(value: Any) -> bool:
             """Check if the value needs CDATA wrapping."""
             if isinstance(value, str):
                 return any(char in value for char in ["<", ">", "&"])
             return False
 
-        def build_xml(element: etree.Element, obj_dict: Any) -> None:
+        def build_xml(element: etree.Element, obj_dict: Any, current_key: str = '') -> None:
             """Recursive helper to build the XML structure."""
             if isinstance(obj_dict, BaseModel):
                 obj_dict = obj_dict.model_dump(by_alias=True)
@@ -45,9 +49,9 @@ class PydanticToXMLSerializer:
                         build_xml(sub_element, value)
                     elif isinstance(value, list):
                         # Handle lists of items
+                        item_name = list_item_names.get(key, key[:-1] if key.endswith('s') else key)
                         for item in value:
-                            singular_field_name = key[:-1] if key.endswith('s') else key
-                            item_element = etree.SubElement(sub_element, singular_field_name)
+                            item_element = etree.SubElement(sub_element, item_name)
                             if isinstance(item, (BaseModel, dict)):
                                 # If the item is a nested Pydantic model or dictionary
                                 build_xml(item_element, item)
@@ -68,9 +72,9 @@ class PydanticToXMLSerializer:
                         else:
                             sub_element.text = str(value)
             elif isinstance(obj_dict, list):
+                item_name = list_item_names.get(current_key, element.tag[:-1] if element.tag.endswith('s') else element.tag)
                 for item in obj_dict:
-                    singular_field_name = element.tag[:-1] if element.tag.endswith('s') else element.tag
-                    item_element = etree.SubElement(element, singular_field_name)
+                    item_element = etree.SubElement(element, item_name)
                     if isinstance(item, (BaseModel, dict)):
                         build_xml(item_element, item)
                     else:
@@ -86,7 +90,7 @@ class PydanticToXMLSerializer:
                     element.text = str(obj_dict)
 
         # Build the XML structure
-        build_xml(root, obj)
+        build_xml(root, obj, current_key=root_name)
 
         try:
             # Initial conversion to string
@@ -159,6 +163,12 @@ def main():
     # Specify which fields should be wrapped in CDATA
     cdata_fields = ["email"]  # Only email is explicitly specified for CDATA
 
+    # Define custom item names for lists
+    list_item_names = {
+        'tags': 'tag',  # 'tags' list items will be serialized as 'tag'
+        # Add other mappings if needed
+    }
+
     # Serialize to XML with lowercase class names, include XML declaration,
     # and activate auto CDATA wrapping
     xml_string = PydanticToXMLSerializer.serialize(
@@ -168,6 +178,7 @@ def main():
         include_declaration=True,
         cdata_fields=cdata_fields,
         auto_cdata=True,  # Activate automatic CDATA wrapping
+        list_item_names=list_item_names,  # Pass the custom item names
     )
 
     print(xml_string)

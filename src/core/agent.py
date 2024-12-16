@@ -104,6 +104,16 @@ class Agent:
 
         if response.final_answer is not None:
             self._add_to_memory(response)
+            # Handle display of completion here
+            self.state = AgentState.COMPLETE
+            self.console.print(
+                Panel.fit(
+                    f"[bold green]Final Answer:[/bold green] {response.final_answer}",
+                    title="Final Answer",
+                    border_style="green",
+                )
+            )
+            self.console.input("[yellow]Press Enter to continue...[/yellow]")
             return False
 
         if response.action is not None:
@@ -225,18 +235,11 @@ class Agent:
         if not current_thought:
             return "No step results available."
 
-        print("---> Current Thought:")
-        print(current_thought)
-        input("Press Enter to continue...")
 
         ## Get first to_do step
         current_step = current_thought.to_do[0] if current_thought.to_do else None
         if not current_step:
             return "No step results available."
-
-        print("---> Current Step:")
-        print(current_step)
-        input("Press Enter to continue...")
 
         ## Get depends on steps list for the current step
         depends_on_steps = (
@@ -245,10 +248,6 @@ class Agent:
 
         # Always include the last step in the list of dependencies
         depends_on_steps.append(current_step.name)
-
-        print("---> Depends on Steps:")
-        print(depends_on_steps)
-        input("Press Enter to continue...")
 
         content = []
         for step_name, result in self.step_results.items():
@@ -280,7 +279,7 @@ class Agent:
         """Prepare prompt for LLM"""
         return query_template(
             query=self.query,
-            history=self._format_history(last_n=3),
+            history=self._format_history(last_n=1),
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
@@ -317,9 +316,16 @@ class Agent:
         content: list[str] = []
         memory_items = self.memory[-last_n:] if last_n else self.memory
 
-        for i, step in enumerate(memory_items):
+        for i, memory_item in enumerate(memory_items):
             content.append(f"Iteration {len(self.memory) - len(memory_items) + i + 1}:")
-            content.append(PydanticToXMLSerializer.serialize(step, pretty=True))
+            content.append(
+                PydanticToXMLSerializer.serialize(
+                    memory_item,
+                    pretty=True,
+                    indent=2,
+                    list_item_names={"to_do": "step", "done": "step"},
+                )
+            )
             content.append("-------------------")
         return "\n".join(content)
 
@@ -357,7 +363,7 @@ class Agent:
         # Improved regex to capture XML within code blocks or standalone
         match = re.search(r"```xml\s*([\s\S]*?)\s*```", input)
         if not match:
-            match = re.search(r"(<response>[\s\S]*?</response>)", input)
+            match = re.search(r"(<response>[\\s\S]*?</response>)", input)
             if not match:
                 return None
             return match.group(1)
@@ -388,59 +394,67 @@ class Agent:
 
     def _add_to_memory(self, response: Response) -> None:
         """Add thought to memory"""
-        thought = response.thought
-        if thought and thought.to_do:
-            current_step = thought.to_do[0]
-            current_step_name = current_step.name
+        if response.final_answer is not None:
+            # Simplify handling of final answer
+            self.memory.append(response)
+        elif response.thought and response.thought.to_do:
+            thought = response.thought
+            if thought and thought.to_do:
+                current_step = thought.to_do[0]
+                current_step_name = current_step.name
 
-            # Update current_step result
-            current_step.result = (
-                response.action_result
-                or f"Result saved in ${current_step_name}$ variable"
-            )
-
-            # Add current_step to done_steps
-            self.done_steps.append(current_step)
-            self.step_results[current_step_name] = current_step.result
-
-            # Remove the current_step from to_do_steps
-            self.to_do_steps = [
-                step for step in self.to_do_steps if step.name != current_step_name
-            ]
-
-            # Add remaining to_do steps to to_do_steps if not already present
-            existing_step_names = {step.name for step in self.to_do_steps}
-            done_step_names = {step.name for step in self.done_steps}
-
-            for step in thought.to_do[1:]:
-                if (
-                    step.name not in existing_step_names
-                    and step.name not in done_step_names
-                ):
-                    self.to_do_steps.append(step)
-
-            if response.action:
-                response.action.result = (
-                    f"Step {current_step_name} done, the content is in: "
-                    f"${current_step_name}$ variable"
+                # Update current_step result
+                current_step.result = (
+                    f"Result saved in ${current_step_name}$ variable"
                 )
 
-            self.current_thought = Thought(
-                reasoning=thought.reasoning,
-                to_do=self.to_do_steps,
-                done=self.done_steps,
-            )
+                # Add current_step to done_steps
+                self.done_steps.append(current_step)
+                self.step_results[current_step_name] = current_step.result
 
-            # Display current thought in a panel
-            self.console.print(
-                Panel.fit(
-                    PydanticToXMLSerializer.serialize(
-                        self.current_thought, pretty=True
-                    ),
-                    title="[bold cyan]Current Thought[/bold cyan]",
-                    border_style="cyan",
+                # Remove the current_step from to_do_steps
+                self.to_do_steps = [
+                    step for step in self.to_do_steps if step.name != current_step_name
+                ]
+
+                # Add remaining to_do steps to to_do_steps if not already present
+                existing_step_names = {step.name for step in self.to_do_steps}
+                done_step_names = {step.name for step in self.done_steps}
+
+                for step in thought.to_do[1:]:
+                    if (
+                        step.name not in existing_step_names
+                        and step.name not in done_step_names
+                    ):
+                        self.to_do_steps.append(step)
+
+                if response.action:
+                    response.action.result = (
+                        f"Step {current_step_name} done, the content is in: "
+                        f"${current_step_name}$ variable"
+                    )
+
+                self.current_thought = Thought(
+                    reasoning=thought.reasoning,
+                    to_do=self.to_do_steps,
+                    done=self.done_steps,
                 )
-            )
-            self.console.input("[yellow]Press Enter to continue...[/yellow]")
 
+                # Display current thought in a panel
+                self.console.print(
+                    Panel.fit(
+                        PydanticToXMLSerializer.serialize(
+                            self.current_thought,
+                            pretty=True,
+                            list_item_names={"to_do": "step", "done": "step"},
+                        ),
+                        title="[bold cyan]Current Thought[/bold cyan]",
+                        border_style="cyan",
+                    )
+                )
+                self.console.input("[yellow]Press Enter to continue...[/yellow]")
+
+                self.memory.append(response)
+        else:
+            # Handle other cases
             self.memory.append(response)
