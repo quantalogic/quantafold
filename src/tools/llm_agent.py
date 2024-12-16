@@ -34,16 +34,18 @@ class LLMAgentTool(Tool):
             ToolArgument(
                 name="persona",
                 type="string",
-                description="Defines the personality and expertise the AI should adopt. Examples: 'expert physicist', 'creative writer', 'python developer'.",
+                description="""
+                    Defines the personality and expertise the AI should adopt. Use a comprehensive and detailed persona. Examples: 'expert physicist with deep expertise in magnetic fields', 'creative writer', 'python developer'.
+                    """,
                 required=True,
             ),
             ToolArgument(
                 name="prompt",
-                type="string", 
+                type="string",
                 description="""The main instruction or question for the AI agent.
                 - Max length: 20,000 tokens
                 - Must be clear and specific
-                - Variable interpolation using $var$ syntax
+                - Supports variable interpolation using $var$ syntax
 
                 Examples:
                 - Single variable: 'Analyze the code in $code_block$'
@@ -56,7 +58,7 @@ class LLMAgentTool(Tool):
                 type="string",
                 description="""Background information to provide context to the AI.
                 - Max length: 20,000 tokens
-                - Variable interpolation supported
+                - Supports variable interpolation
 
                 Examples:
                 - 'Previous response: $step_1$'

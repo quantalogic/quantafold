@@ -46,7 +46,8 @@ class PydanticToXMLSerializer:
                     elif isinstance(value, list):
                         # Handle lists of items
                         for item in value:
-                            item_element = etree.SubElement(sub_element, "item")
+                            singular_field_name = key[:-1] if key.endswith('s') else key
+                            item_element = etree.SubElement(sub_element, singular_field_name)
                             if isinstance(item, (BaseModel, dict)):
                                 # If the item is a nested Pydantic model or dictionary
                                 build_xml(item_element, item)
@@ -68,7 +69,8 @@ class PydanticToXMLSerializer:
                             sub_element.text = str(value)
             elif isinstance(obj_dict, list):
                 for item in obj_dict:
-                    item_element = etree.SubElement(element, "item")
+                    singular_field_name = element.tag[:-1] if element.tag.endswith('s') else element.tag
+                    item_element = etree.SubElement(element, singular_field_name)
                     if isinstance(item, (BaseModel, dict)):
                         build_xml(item_element, item)
                     else:

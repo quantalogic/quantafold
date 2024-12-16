@@ -140,10 +140,6 @@ class Agent:
         if tool.need_validation and not self._get_user_approval(tool_name, action):
             return "Action not approved by user"
 
-        if tool.need_parent_context:
-            parent_context = self._format_step_results()
-            action.arguments["parent_context"] = parent_context
-
         try:
             # Convert dictionary arguments to named arguments
             # and replace any interpolated variables
@@ -284,7 +280,7 @@ class Agent:
         """Prepare prompt for LLM"""
         return query_template(
             query=self.query,
-            history=self._format_history(),
+            history=self._format_history(last_n=3),
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
@@ -392,48 +388,59 @@ class Agent:
 
     def _add_to_memory(self, response: Response) -> None:
         """Add thought to memory"""
-        current_step = (
-            response.thought.to_do[0]
-            if response.thought and response.thought.to_do
-            else None
-        )
-        current_step_name = current_step.name if current_step else None
-        if current_step_name:
-            self.done_steps.append(
-                Step(
-                    name=current_step_name,
-                    description=current_step.description,
-                    reason=current_step.reason,
-                )
-            )
-            self.step_results[current_step_name] = response.action_result
+        thought = response.thought
+        if thought and thought.to_do:
+            current_step = thought.to_do[0]
+            current_step_name = current_step.name
 
-            self.done_steps.append(
-                Step(
-                    name=current_step_name,
-                    description=current_step.description,
-                    reason=current_step.reason,
-                )
+            # Update current_step result
+            current_step.result = (
+                response.action_result
+                or f"Result saved in ${current_step_name}$ variable"
             )
 
-            ## Remove the current_step_name from to_do_steps
+            # Add current_step to done_steps
+            self.done_steps.append(current_step)
+            self.step_results[current_step_name] = current_step.result
+
+            # Remove the current_step from to_do_steps
             self.to_do_steps = [
                 step for step in self.to_do_steps if step.name != current_step_name
             ]
 
-            ## add in to_do_steps all the steps that are not done
-            new_to_do_steps = [
-                step
-                for step in response.thought.to_do
-                if step.name != current_step_name
-            ]
-            ## add the new to_do_steps
-            self.to_do_steps.extend(new_to_do_steps)
+            # Add remaining to_do steps to to_do_steps if not already present
+            existing_step_names = {step.name for step in self.to_do_steps}
+            done_step_names = {step.name for step in self.done_steps}
 
-        self.current_tought = Thought(
-            reasoning=response.thought.reasoning,
-            to_do=self.to_do_steps,
-            done=self.done_steps,
-        )
+            for step in thought.to_do[1:]:
+                if (
+                    step.name not in existing_step_names
+                    and step.name not in done_step_names
+                ):
+                    self.to_do_steps.append(step)
 
-        self.memory.append(response)
+            if response.action:
+                response.action.result = (
+                    f"Step {current_step_name} done, the content is in: "
+                    f"${current_step_name}$ variable"
+                )
+
+            self.current_thought = Thought(
+                reasoning=thought.reasoning,
+                to_do=self.to_do_steps,
+                done=self.done_steps,
+            )
+
+            # Display current thought in a panel
+            self.console.print(
+                Panel.fit(
+                    PydanticToXMLSerializer.serialize(
+                        self.current_thought, pretty=True
+                    ),
+                    title="[bold cyan]Current Thought[/bold cyan]",
+                    border_style="cyan",
+                )
+            )
+            self.console.input("[yellow]Press Enter to continue...[/yellow]")
+
+            self.memory.append(response)
