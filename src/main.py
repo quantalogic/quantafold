@@ -11,6 +11,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.theme import Theme
+from tools.beautifulsoup import BeautifulSoupTool
 from tools.display_content import DisplayContentTool
 from tools.duckduckgo import DuckDuckGoSearchTool
 from tools.file_reader import FileReaderTool
@@ -101,6 +102,7 @@ def main() -> None:
     agent.register(DisplayContentTool())
     agent.register(FileTreeTool())
     agent.register(DuckDuckGoSearchTool())
+    agent.register(BeautifulSoupTool())
 
     # Build tool descriptions for welcome message
     tool_descriptions = "".join(

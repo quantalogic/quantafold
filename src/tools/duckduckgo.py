@@ -1,14 +1,15 @@
 import logging
 import time
+from functools import lru_cache
 from typing import List
 
 try:
     from duckduckgo_search import DDGS
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "The 'duckduckgo-search' package is required. Please install it using:\n"
         "pip install duckduckgo-search"
-    )
+    ) from err
 
 from models.tool import Tool, ToolArgument
 from pydantic import Field
@@ -43,10 +44,17 @@ class DuckDuckGoSearchTool(Tool):
             name="max_results",
             type="int",
             description="Maximum number of results to return",
-            default="5",
+            default="30",
             required=False,
         ),
     ]
+
+    @staticmethod
+    @lru_cache(maxsize=128)
+    def cached_search(query: str, max_results: int) -> List[dict]:
+        """Cache search results to reduce redundant API calls."""
+        with DDGS() as ddgs:
+            return list(ddgs.text(query, max_results=max_results))
 
     def execute(self, query: str, max_results: str = "5") -> str:
         """Execute a search query using DuckDuckGo and return results."""
@@ -56,11 +64,11 @@ class DuckDuckGoSearchTool(Tool):
 
         try:
             max_results_int = int(max_results)
+            if max_results_int <= 0:
+                raise ValueError("max_results must be a positive integer.")
             time.sleep(0.5)  # Rate limiting
 
-            with DDGS() as ddgs:
-                # Using the generator to get search results
-                results = list(ddgs.text(query, max_results=max_results_int))
+            results = self.cached_search(query, max_results_int)
 
             if not results:
                 logger.warning(f"No results found for '{query}'")
@@ -68,20 +76,28 @@ class DuckDuckGoSearchTool(Tool):
 
             formatted_results = []
             for idx, result in enumerate(results, 1):
-                title = result.get("text", "").split(" - ")[
-                    0
-                ]  # First part before ' - ' is usually the title
+                title = result.get("text", "").split(" - ")[0]
                 link = result.get("href", "No URL")
                 description = result.get("text", "No description")
+                summary = result.get("summary", "No summary")  # Extract summary
 
                 formatted_results.append(
-                    f"{idx}. {title}\n" f"   URL: {link}\n" f"   {description}\n"
+                    f"{idx}. {title}\n   URL: {link}\n   Description: {description}\n   Summary: {summary}\n"
                 )
 
+            logger.info(
+                f"Search successful for query '{query}' with {len(results)} results."
+            )
             return "\n".join(formatted_results)
 
+        except ValueError as ve:
+            logger.error(f"Value error for query '{query}': {ve}")
+            return f"Error: {ve}"
+        except DuckDuckGoAPIError as e:
+            logger.error(f"DuckDuckGoAPIError for query '{query}': {e}")
+            return f"Error: {str(e)}"
         except Exception as e:
-            logger.error(f"DuckDuckGo search error for query '{query}': {e}")
+            logger.error(f"Unexpected error for query '{query}': {e}")
             raise DuckDuckGoAPIError(
                 f"Failed to fetch search results for '{query}'"
             ) from e
