@@ -1,6 +1,47 @@
 import datetime
 import os
 
+EXAMPLE_FORMAT = """
+<response>
+    <thought>
+        <reasoning>
+            - The goal is to utilize a tool to gather weather information based on user preferences.
+            - Reviewing past thoughts in <history>, I noticed that the user wants the weather forecast for their location.
+            - The next step involves fetching the current weather data using an appropriate tool.
+            - I need to ensure that the chosen tool can access live weather data and is compatible with our current system.
+            - Each step in the plan will be clearly stated along with dependencies.
+            - The final goal is to present the user with the most accurate weather information.
+        </reasoning>
+        <to_do>
+            <step>
+                <name>get_weather_data</name>
+                <description><![CDATA[Fetch the current weather data for the user's location]]></description>
+                <reason><![CDATA[Using a weather API to get real-time data is essential for accuracy]]></reason>
+                <depends_on_steps>
+                    <step_name>resolve_user_location</step_name>
+                </depends_on_steps>
+            </step>
+        </to_do>
+        <done>
+            <step>
+                <name>resolve_user_location</name>
+                <description><![CDATA[Determine the user's current location based on their profile]]></description>
+                <reason><![CDATA[Knowing the user's location is crucial for fetching relevant weather information]]></reason>
+            </step>
+        </done>
+    </thought>
+    <action>
+        <step_name>get_weather_data</step_name>
+        <tool_name>WeatherAPI</tool_name>
+        <reason><![CDATA[Chosen for its reliability and accuracy in providing weather data]]></reason>
+        <arguments>
+            <location><![CDATA[$resolve_user_location$]]></location>
+            <units><![CDATA[metric]]></units>
+        </arguments>
+    </action>
+</response>
+"""
+
 
 def output_format() -> str:
     return """
@@ -9,7 +50,7 @@ def output_format() -> str:
 <response>
     <thought>
         <reasoning>
-            - Reformulate the goal
+            - Reformulate the goal, ensure that the final goal is clearly stated
             - Review the past Toughts in <history>, to see what has been done to achieve the goal
             - Identify the next steps to take
             - Rewrite the plan if necessary, including the steps from the previous iteration taken from <history>
@@ -19,7 +60,6 @@ def output_format() -> str:
             - Clearly state the final goal
             - Ensure that the final goal is achievable with the steps provided
             - Ensure that the final goal is a valid answer to the query
-            - Ensure that the final goal is clearly stated
         </reasoning>
         <to_do>
             <!- list of the envisioned steps to do to answer the query -->
@@ -99,7 +139,9 @@ VERY IMPORTANT:
 
 DO NOT include any text before or after the XML object. The response must be well-formed XML.
 
-"""
+""" + """
+Example format:
+""" + EXAMPLE_FORMAT
 
 
 def query_template(
@@ -116,7 +158,8 @@ def query_template(
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     operating_system = os.uname().sysname
     current_shell = os.environ.get("SHELL", "N/A")
-    return f"""
+    return (
+        f"""
 # Goal to achieve:
 
 You are a ReAct (Reasoning and Acting) agent tasked to achieve the following goal:
@@ -150,6 +193,7 @@ Shell: {current_shell}
 ### Using variables from previous steps:
 
 Variables from previous steps can be used in your tool arguments using $step_name$ syntax.
+
 For example:
 
 1. If a step named "get_weather" returned the value "sunny":
@@ -158,8 +202,8 @@ For example:
     <step_result_variables>
         <get_weather><![CDATA[sunny]]></get_weather>
     </step_result_variables>
-    
-   - You can use $get_weather$ in your next tool arguments 
+ 
+    - You can use $get_weather$ in your next tool arguments
    - It will be replaced with "sunny"
 
 2. Complete example with multiple variables:
@@ -203,3 +247,4 @@ For example:
 {output_format}
 
 """
+    )
