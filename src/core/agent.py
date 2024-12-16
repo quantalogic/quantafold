@@ -32,6 +32,7 @@ class Agent:
         self.to_do_steps: list[Step] = []
         self.done_steps: list[Step] = []
         self.step_results: dict[str, str] = {}
+        self.final_answer: str | None = None
         self.query: str = ""
         self.max_iterations: int = max_iterations
         self.current_iteration: int = 0
@@ -57,9 +58,8 @@ class Agent:
     def _reset_state(self, query: str) -> None:
         """Reset agent state for new execution"""
         self.query = query
-        self.messages = []
         self.memory = []
-        self.toughts = []
+        self.final_answer = None
         self.done_steps = []
         self.step_results = {}  # Changed from dict[str, str] to {}
         self.to_do_steps = []
@@ -96,24 +96,20 @@ class Agent:
         """Process response and decide next action"""
         self.state = AgentState.DECIDING
 
-        print("Decide:\n")
-        print(response.model_dump_json(indent=2))
+        self.console.print(
+            Panel.fit(
+                response.model_dump_json(indent=2),
+                title="[bold magenta]Decision Response[/bold magenta]",
+                border_style="magenta",
+            )
+        )
 
         if not response.thought:
             raise ValueError("Response must contain a thought")
 
         if response.final_answer is not None:
-            self._add_to_memory(response)
-            # Handle display of completion here
             self.state = AgentState.COMPLETE
-            self.console.print(
-                Panel.fit(
-                    f"[bold green]Final Answer:[/bold green] {response.final_answer}",
-                    title="Final Answer",
-                    border_style="green",
-                )
-            )
-            self.console.input("[yellow]Press Enter to continue...[/yellow]")
+            self.final_answer = response.final_answer
             return False
 
         if response.action is not None:
@@ -221,40 +217,9 @@ class Agent:
 
     def _get_final_answer(self) -> str:
         """Get the final answer from memory"""
-        last_memory = self.memory[-1] if self.memory else None
-        if last_memory and last_memory.final_answer:
-            return last_memory.final_answer
+        if self.final_answer:
+            return self.final_answer
         return "No answer found"
-
-        """Format step result variables in XML format."""
-        if not self.step_results:
-            return "No step results available."
-
-        ## Get current thought
-        current_thought = self.memory[-1].thought if self.memory else None
-        if not current_thought:
-            return "No step results available."
-
-
-        ## Get first to_do step
-        current_step = current_thought.to_do[0] if current_thought.to_do else None
-        if not current_step:
-            return "No step results available."
-
-        ## Get depends on steps list for the current step
-        depends_on_steps = (
-            current_step.depends_on_steps if current_step.depends_on_steps else []
-        )
-
-        # Always include the last step in the list of dependencies
-        depends_on_steps.append(current_step.name)
-
-        content = []
-        for step_name, result in self.step_results.items():
-            if step_name in depends_on_steps:
-                content.append(f"   <{step_name}>{result}</{step_name}>")
-
-        return "\n".join(content)
 
     def _format_step_result_variables(self) -> str:
         """Format step result variables in XML format."""
@@ -279,23 +244,14 @@ class Agent:
         """Prepare prompt for LLM"""
         return query_template(
             query=self.query,
-            history=self._format_history(last_n=1),
+            history=self._format_tasks(),
             current_iteration=self.current_iteration,
             max_iterations=self.max_iterations,
             remaining_iterations=self.max_iterations - self.current_iteration,
             tools=self._available_tools_description("xml"),
             output_format=output_format(),
-            done_steps=self._format_past_steps("xml"),
             step_result_variables=self._format_step_result_variables(),
         )
-
-    def _format_chain_of_thought(self) -> str:
-        """Format chain of thought in JSON format with pretty printing"""
-        if not self.current_tought:
-            return ""
-
-        # return last Thought as XML
-        return PydanticToXMLSerializer.serialize(self.current_tought, pretty=True)
 
     def _format_step_results(self) -> str:
         content: list[str] = []
@@ -304,6 +260,39 @@ class Agent:
             content.append("```")
             content.append(result)
             content.append("```")
+        return "\n".join(content)
+
+    def _format_tasks(self) -> str:
+        """Format tasks in XML format."""
+        content = []
+
+        if self.final_answer is not None:
+            content.append(f"<final_answer>{self.final_answer}</final_answer>")
+
+        ## Done steps
+        content.append("  <done>")
+        for step in self.done_steps:
+            content.append(
+                "    " + PydanticToXMLSerializer.serialize(step, pretty=True)
+            )
+        content.append("  </done>")
+
+        content.append("")
+
+        ## To do steps
+        content.append("  <to_do>")
+        for step in self.to_do_steps:
+            content.append("   " + PydanticToXMLSerializer.serialize(step, pretty=True))
+        content.append("  </to_do>")
+
+        content.append("")
+
+        ## Available variables
+        content.append("  <variables>")
+        for step_name, _result in self.step_results.items():
+            content.append(f"    <variable>${step_name}$</variable>")
+        content.append("  </variables>")
+
         return "\n".join(content)
 
     def _format_history(self, last_n: int = 1) -> str:
@@ -329,7 +318,6 @@ class Agent:
             content.append("-------------------")
         return "\n".join(content)
 
-    def _format_past_steps(self, format: str) -> str:
         """Format past steps in XML or JSON format with pretty printing"""
         if not self.done_steps:
             return "No previous steps"
@@ -395,7 +383,6 @@ class Agent:
     def _add_to_memory(self, response: Response) -> None:
         """Add thought to memory"""
         if response.final_answer is not None:
-            # Simplify handling of final answer
             self.memory.append(response)
         elif response.thought and response.thought.to_do:
             thought = response.thought
@@ -404,35 +391,20 @@ class Agent:
                 current_step_name = current_step.name
 
                 # Update current_step result
-                current_step.result = (
-                    f"Result saved in ${current_step_name}$ variable"
-                )
+                current_step.result = f"Result saved in ${current_step_name}$ variable"
 
                 # Add current_step to done_steps
                 self.done_steps.append(current_step)
-                self.step_results[current_step_name] = current_step.result
 
                 # Remove the current_step from to_do_steps
                 self.to_do_steps = [
                     step for step in self.to_do_steps if step.name != current_step_name
                 ]
 
-                # Add remaining to_do steps to to_do_steps if not already present
-                existing_step_names = {step.name for step in self.to_do_steps}
-                done_step_names = {step.name for step in self.done_steps}
+                self.to_do_steps = thought.to_do[1:]
 
-                for step in thought.to_do[1:]:
-                    if (
-                        step.name not in existing_step_names
-                        and step.name not in done_step_names
-                    ):
-                        self.to_do_steps.append(step)
-
-                if response.action:
-                    response.action.result = (
-                        f"Step {current_step_name} done, the content is in: "
-                        f"${current_step_name}$ variable"
-                    )
+                if response.action_result:
+                    self.step_results[current_step_name] = response.action_result
 
                 self.current_thought = Thought(
                     reasoning=thought.reasoning,
@@ -453,7 +425,6 @@ class Agent:
                     )
                 )
                 self.console.input("[yellow]Press Enter to continue...[/yellow]")
-
                 self.memory.append(response)
         else:
             # Handle other cases

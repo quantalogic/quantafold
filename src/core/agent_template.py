@@ -68,7 +68,7 @@ def output_format() -> str:
     <thought>
         <reasoning>
             - Clearly define the final goal.
-            - Review the past Toughts in <history>, to see what has been done to achieve the goal.
+            - Review the past Toughts in <history>, to see what has already be been done to achieve the goal.
             - Assess whether the goal has been achieved. If not, outline the next steps.
             - Revise the action plan as necessary, incorporating learnings from <history>.
             - Justify each step's inclusion logically.
@@ -115,9 +115,14 @@ def output_format() -> str:
             <step_name>step_name</step_name>A
             <!-- the tool_name is mandatory, and must be present in <available_tools> -->
             <tool_name>EXACT_TOOL_NAME</tool_name>
-            <reason><![CDATA[Brief explanation of why you chose this tool]]></reason>
+            <reason><![CDATA[
+                - Brief explanation of why you chose this tool
+                - Identify candidate interpolation variables names from previous steps
+            ]]>
+            </reason>
             <arguments>
                 <!-- Variable interpolation allows referencing results from previous steps -->
+                <!-- Variable interpolation MUST be used if the tool requires input from previous steps -->
                 <!-- Format: $step_name$ will be replaced with the output of that step -->
                 <!-- don't be lazy, you must provide the full content of the argument or you must use interpolated variables -->
                 <!-- Examples:
@@ -165,7 +170,6 @@ def query_template(
     remaining_iterations: int,
     tools: str,
     output_format: str,
-    done_steps: str = "",
     step_result_variables: str = "",
 ) -> str:
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -204,32 +208,59 @@ Shell: {current_shell}
 
 ### Using variables from previous steps:
 
-Variables from previous steps can be used in your tool arguments using $step_name$ syntax.
+You can use results from previous steps in your tool arguments using the $step_name$ syntax.
+The value will be automatically replaced with the actual result when the tool is executed.
 
-For example:
+Examples of variable interpolation:
 
-1. If a step named "get_weather" returned the value "sunny":
-
-    Example:
-    <step_result_variables>
-        <get_weather><![CDATA[sunny]]></get_weather>
-    </step_result_variables>
- 
-    - You can use $get_weather$ in your next tool arguments
-   - It will be replaced with "sunny"
-
-2. Complete example with multiple variables:
+1. Simple variable usage:
    ```xml
+   <step_result_variables>
+       <read_file>Hello World!</read_file>
+   </step_result_variables>
+
    <action>
-       <tool_name>create_report</tool_name>
-       <reason><![CDATA[Generate weather report for user]]></reason>
+       <tool_name>PROCESS_TEXT</tool_name>
        <arguments>
-           <user><![CDATA[$get_user_name$]]></user>
-           <weather><![CDATA[$get_weather$]]></weather>
-           <temperature><![CDATA[$get_temperature$]]></temperature>
+           <text><![CDATA[$read_file$]]></text>
        </arguments>
    </action>
    ```
+
+2. Multiple variables in one argument:
+   ```xml
+   <step_result_variables>
+       <get_name>John</get_name>
+       <get_age>30</get_age>
+   </step_result_variables>
+
+   <action>
+       <tool_name>CREATE_PROFILE</tool_name>
+       <arguments>
+           <content><![CDATA[Name: $get_name$, Age: $get_age$]]></content>
+       </arguments>
+   </action>
+   ```
+
+3. Variables with additional text:
+   ```xml
+   <step_result_variables>
+       <fetch_path>/home/user/</fetch_path>
+       <get_filename>data.txt</get_filename>
+   </step_result_variables>
+
+   <action>
+       <tool_name>READ_FILE</tool_name>
+       <arguments>
+           <filepath><![CDATA[$fetch_path$$get_filename$]]></filepath>
+       </arguments>
+   </action>
+   ```
+
+Important:
+- Always use <![CDATA[...]]> around argument values
+- Variables must exist in step_result_variables
+- Variable names are case-sensitive
 
 ### Instructions:
 
