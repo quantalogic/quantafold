@@ -20,6 +20,15 @@ class Step(BaseModel):
     result: Optional[str] = Field(
         None, description="Summary of the result from executing this step."
     )
+    tool_name: Optional[str] = Field(
+        None, description="The tool associated with this step"
+    )
+
+    arguments: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Arguments needed for the tool, as key-value pairs.",
+    )
+
     depends_on_steps: List[str] = Field(
         default_factory=list,
         description="List of step names that this step depends on.",

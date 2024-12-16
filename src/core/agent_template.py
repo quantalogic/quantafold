@@ -67,19 +67,24 @@ def output_format() -> str:
 <response>
     <thought>
         <reasoning>
-            - Clearly define the final goal.
-            - Review the past Toughts in <history>, to see what has already be been done to achieve the goal.
+            - Reformulate the query with your own words.
+            - Be very careful with query that imply a temporal context, include date and time if relevant, reformulate the current date and time.
+            - Reformulate what has been done in the past to answer the query.
+            - Review if recent completed steps have moved us closer to the goal. What gaps remain? What is Missing ?
+            - Reformulate what need to be done according to the history.
             - Assess whether the goal has been achieved. If not, outline the next steps.
-            - Revise the action plan as necessary, incorporating learnings from <history>.
+            - Write what steps are needed to achieve the goal.
             - Justify each step's inclusion logically.
             - Ensure steps follow a logical sequence.
             - Clearly state the dependencies between steps.
             - Confirm the final goal is realistic and answerable.
+            - Choose the action to take based on the current context 
+            - If you cannot get information enough from a previous step, try other tool or arguments
         </reasoning>
         <to_do>
             <!- list of the envisioned steps to do to answer the query -->
             <step>
-                <!-- name is mandatory, snake_case -->
+                <!-- name is mandatory, snake_case, the step_name must be unique and describe well the step -->
                 <name>step_name</name>
                 <!-- description is mandatory -->
                 <description><![CDATA[description of the step]]></description>

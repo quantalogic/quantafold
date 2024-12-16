@@ -392,6 +392,8 @@ class Agent:
 
                 # Update current_step result
                 current_step.result = f"Result saved in ${current_step_name}$ variable"
+                current_step.tool_name = response.action.tool_name
+                current_step.arguments = response.action.arguments
 
                 # Add current_step to done_steps
                 self.done_steps.append(current_step)
