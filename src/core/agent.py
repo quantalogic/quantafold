@@ -117,6 +117,18 @@ class Agent:
         self._add_to_memory(response)
         return True
 
+    def _find_interpolated_variables(self, text: str) -> list[str]:
+        """Find all interpolated variables in a text string."""
+        return re.findall(r"\$([a-zA-Z0-9_]+)\$", text)
+
+    def _replace_interpolated_variables(
+        self, text: str, variables: dict[str, str]
+    ) -> str:
+        """Replace all interpolated variables in a text string with their values."""
+        for variable, value in variables.items():
+            text = text.replace(f"${variable}$", value)
+        return text
+
     def _handle_action(self, action: Action) -> str:
         """Handle tool execution"""
         tool_name = action.tool_name.upper()
@@ -134,11 +146,15 @@ class Agent:
 
         try:
             # Convert dictionary arguments to named arguments
+            # and replace any interpolated variables
             named_args = {}
             for key, value in action.arguments.items():
                 # Ensure the key is a valid Python identifier
                 valid_key = key.replace("-", "_").replace(" ", "_")
-                named_args[valid_key] = value
+                interpolated_value = self._replace_interpolated_variables(
+                    value, self.step_results
+                )
+                named_args[valid_key] = interpolated_value
 
             self.console.print(
                 Panel.fit(
@@ -203,7 +219,6 @@ class Agent:
         if last_memory and last_memory.final_answer:
             return last_memory.final_answer
         return "No answer found"
-
 
         """Format step result variables in XML format."""
         if not self.step_results:
@@ -343,9 +358,13 @@ class Agent:
         Returns:
             str: The first XML content within the code block, or None if not found
         """
+        # Improved regex to capture XML within code blocks or standalone
         match = re.search(r"```xml\s*([\s\S]*?)\s*```", input)
         if not match:
-            return None
+            match = re.search(r"(<response>[\s\S]*?</response>)", input)
+            if not match:
+                return None
+            return match.group(1)
         return match.group(1)
 
     def _parse_response(self, response: str) -> Response:

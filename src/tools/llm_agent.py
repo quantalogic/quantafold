@@ -34,7 +34,7 @@ class LLMAgentTool(Tool):
             ToolArgument(
                 name="persona",
                 type="string",
-                description="Defines the personality, expertise, and tone the AI should adopt (e.g., 'expert physicist', 'creative writer').",
+                description="Defines the personality and expertise the AI should adopt. Examples: 'expert physicist', 'creative writer', 'python developer'.",
                 required=True,
             ),
             ToolArgument(
@@ -43,33 +43,36 @@ class LLMAgentTool(Tool):
                 description="""The main instruction or question for the AI agent.
                 - Max length: 20,000 tokens
                 - Must be clear and specific
-                - Include all necessary context as there's no conversation memory
-                - Variable interpolation: References outputs from previous workflow steps using $step_name$ 
-                - Single interpolation: 'Analyze the text from $step_1$'
-                - Multiple interpolations: 'Compare reports from $step_1$ and $step_2$'
-                - Invalid references will be left as-is: '$invalid_step$'""",
+                - Variable interpolation using $var$ syntax
+
+                Examples:
+                - Single variable: 'Analyze the code in $code_block$'
+                - Multiple variables: 'Compare the results of $analysis1$ with $analysis2$'
+                - With context: 'Given the data in $previous_step$, explain the trends'""",
                 required=True,
             ),
             ToolArgument(
                 name="context",
                 type="string",
-                description="""Additional background information or data for the AI.
+                description="""Background information to provide context to the AI.
                 - Max length: 20,000 tokens
-                - Optional but recommended for better responses
-                - Supports all interpolation features described in prompt parameter
-                - Example: 'Analysis: $step_1$\nMetadata: $step_2$'
-                """,
+                - Variable interpolation supported
+
+                Examples:
+                - 'Previous response: $step_1$'
+                - 'Data: $data$ \nMetadata: $metadata$'
+                - 'User profile: $user_info$ \nPreferences: $preferences$'""",
                 required=False,
                 default="",
             ),
             ToolArgument(
                 name="temperature",
                 type="string",
-                description="""Controls response creativity and randomness (0.0 to 1.0):
-                - 0.0: Focused, deterministic, factual
-                - 0.3: Balanced, mostly factual
+                description="""Controls response randomness (0.0 to 1.0):
+                - 0.0: Precise, deterministic (good for code, facts)
+                - 0.3: Mostly deterministic with slight variation
                 - 0.7: Creative but controlled (default)
-                - 1.0: Maximum creativity, higher risk of inaccuracies""",
+                - 1.0: Maximum creativity and variation""",
                 default="0.7",
             ),
         ]
