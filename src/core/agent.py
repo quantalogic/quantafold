@@ -13,6 +13,7 @@ from models.tool import Tool
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.text import Text
 
 
 class AgentState(Enum):
@@ -172,11 +173,12 @@ class Agent:
             return result
         except Exception:
             error_trace = traceback.format_exc()
+            safe_error_trace = Text(error_trace).escape()  # Escape special characters
             self.console.print(
-                f"[red]Error executing tool {tool_name}:[/red]\n{error_trace}"
+                f"[red]Error executing tool {tool_name}:[/red]\n{safe_error_trace}"
             )
             input("Press Enter to continue...")
-            return f"Error executing tool {tool_name}:\n{error_trace}"
+            return f"Error executing tool {tool_name}:\n{safe_error_trace}"
 
     def _get_llm_response(self) -> Response:
         """Get response from the language model"""

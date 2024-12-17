@@ -1,2 +1,4 @@
 rich==13.9.4
 duckduckgo-search>=3.8.3
+markitdown>=1.0.0; python_version >= "3.10" and python_version < "4.0"
+requests>=2.31.0

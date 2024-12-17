@@ -18,6 +18,7 @@ from tools.file_reader import FileReaderTool
 from tools.file_tree import FileTreeTool
 from tools.file_writer import FileWriterTool
 from tools.llm_agent import LLMAgentTool
+from tools.markdown_converter import MarkdownConverterTool
 from tools.shell_command import ShellCommandTool
 from tools.user_input import UserInputTool
 from tools.wikipedia import WikipediaTool
@@ -103,6 +104,7 @@ def main() -> None:
     agent.register(FileTreeTool())
     agent.register(DuckDuckGoSearchTool())
     agent.register(BeautifulSoupTool())
+    agent.register(MarkdownConverterTool())
 
     # Build tool descriptions for welcome message
     tool_descriptions = "".join(

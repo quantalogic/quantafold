@@ -4,7 +4,7 @@ import time
 from typing import Dict, List, Optional, Union
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString, Tag
 from models.tool import Tool, ToolArgument
 from pydantic import Field, PrivateAttr
 from requests.adapters import HTTPAdapter
@@ -54,9 +54,9 @@ class BeautifulSoupTool(Tool):
         ToolArgument(
             name="extract_type",
             type="string",
-            description="Type of content to extract (text, links, images, all)",
-            default="text",
-            required=False,
+            description="Type of content to extract (markdown, text, links, images, all), markdown can capture more information.",
+            default="markdown",
+            required=True,
         ),
         ToolArgument(
             name="timeout",
@@ -96,14 +96,82 @@ class BeautifulSoupTool(Tool):
             "Upgrade-Insecure-Requests": "1",
         }
 
+    def _convert_to_markdown(
+        self, element: Union[Tag, NavigableString], level: int = 0
+    ) -> str:
+        """Convert HTML to Markdown format"""
+        if isinstance(element, NavigableString):
+            return str(element).strip()
+
+        result = []
+        tag = element.name
+
+        # Handle different HTML tags
+        if tag == "h1":
+            return f"# {self._get_inner_text(element)}\n\n"
+        elif tag == "h2":
+            return f"## {self._get_inner_text(element)}\n\n"
+        elif tag == "h3":
+            return f"### {self._get_inner_text(element)}\n\n"
+        elif tag == "p":
+            return f"{self._get_inner_text(element)}\n\n"
+        elif tag == "a":
+            href = element.get("href", "")
+            text = self._get_inner_text(element)
+            return f"[{text}]({href})"
+        elif tag == "ul":
+            for li in element.find_all("li", recursive=False):
+                result.append(f"* {self._get_inner_text(li)}")
+            return "\n".join(result) + "\n\n"
+        elif tag == "ol":
+            for i, li in enumerate(element.find_all("li", recursive=False), 1):
+                result.append(f"{i}. {self._get_inner_text(li)}")
+            return "\n".join(result) + "\n\n"
+        elif tag == "img":
+            alt = element.get("alt", "")
+            src = element.get("src", "")
+            return f"![{alt}]({src})\n\n"
+        elif tag == "code":
+            return f"`{self._get_inner_text(element)}`"
+        elif tag == "pre":
+            return f"```\n{self._get_inner_text(element)}\n```\n\n"
+        elif tag == "blockquote":
+            inner = self._get_inner_text(element)
+            return "\n".join(f"> {line}" for line in inner.split("\n")) + "\n\n"
+        else:
+            # Process nested elements
+            for child in element.children:
+                if isinstance(child, (Tag, NavigableString)):
+                    result.append(self._convert_to_markdown(child, level + 1))
+
+            return "".join(result)
+
+    def _get_inner_text(self, element: Tag) -> str:
+        """Get clean inner text from an element"""
+        return " ".join(element.get_text().split())
+
     def _extract_content(
         self, soup: BeautifulSoup, extract_type: str
     ) -> Union[str, Dict]:
         """Extract specific content based on extract_type"""
+        # Remove script and style elements for all extraction types
+        for script in soup(["script", "style"]):
+            script.decompose()
+
+        if extract_type == "markdown":
+            try:
+                content = []
+                for element in soup.body.children:
+                    if isinstance(element, (Tag, NavigableString)):
+                        content.append(self._convert_to_markdown(element))
+                return "".join(content).strip()
+            except Exception as e:
+                logger.warning(
+                    f"Failed to convert to markdown: {e}. Falling back to text extraction."
+                )
+                return self._extract_content(soup, "text")
+
         if extract_type == "text":
-            # Remove script and style elements
-            for script in soup(["script", "style"]):
-                script.decompose()
             text = " ".join(soup.stripped_strings)
             return text
 
@@ -134,7 +202,7 @@ class BeautifulSoupTool(Tool):
         self,
         url: str,
         parser: str = "html.parser",
-        extract_type: str = "text",
+        extract_type: str = "markdown",
         timeout: int = 30,
     ) -> str:
         """Execute reading a web page using BeautifulSoup and return the parsed content."""
