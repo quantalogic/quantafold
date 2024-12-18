@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 from typing import List
 
@@ -83,6 +84,9 @@ class FileWriterTool(Tool):
             raise ValueError("Error: content parameter cannot be empty")
 
         try:
+            # Expand ~ to user's home directory and resolve path
+            file_path = os.path.expanduser(file_path)
+            file_path = os.path.abspath(file_path)
             file_path = Path(file_path)
 
             # Create parent directories if they don't exist
