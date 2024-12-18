@@ -30,7 +30,7 @@ class DisplayContentError(Exception):
 
 
 class DisplayContentTool(Tool):
-    name: str = Field("DISPLAY_CONTENT", description="Display content tool.")
+    name: str = Field("DISPLAY_CONTENT_TOOL", description="Display content tool.")
     description: str = Field(
         "Display content to the user with rich formatting and styling options.",
         description="A brief description of what the tool does.",
