@@ -185,10 +185,6 @@ class Agent:
         prompt = self._prepare_prompt()
         self.console.print("\n[bold blue]Generated Prompt[/bold blue]")
         prompt_for_display = prompt.replace(output_format(), "")
-        ## Remove content <available_tools> from prompt
-        #prompt_for_display = prompt_for_display.replace(
-        #    self._available_tools_description("xml"), ""
-        #)
         self.console.print(Panel(prompt_for_display, border_style="blue"))
 
         with Progress(
@@ -282,8 +278,13 @@ class Agent:
         ## Last done step
         if self.done_steps:
             content.append("  <last_done>")
-            content.append("    <!-- Last done step, must be assessed to verify that step goal has been achieved to plan what next to do -->")
-            content.append("    " + PydanticToXMLSerializer.serialize(self.done_steps[-1], pretty=True))
+            content.append(
+                "    <!-- Last done step, must be assessed to verify that step goal has been achieved to plan what next to do -->"
+            )
+            content.append(
+                "    "
+                + PydanticToXMLSerializer.serialize(self.done_steps[-1], pretty=True)
+            )
             content.append("  </last_done>")
         else:
             content.append("  <last_done></last_done>")
@@ -363,7 +364,9 @@ class Agent:
             #  Appen tool name, as XML comment
             for tool in self.tools.values():
                 descriptions.append(f"<!-- {tool.name} -->")
-                descriptions.append(PydanticToXMLSerializer.serialize(tool, pretty=True))
+                descriptions.append(
+                    PydanticToXMLSerializer.serialize(tool, pretty=True)
+                )
             return "\n".join(descriptions)
         if format == "json":
             return {tool.name: tool.to_json() for tool in self.tools.values()}
