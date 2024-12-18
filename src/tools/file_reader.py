@@ -20,7 +20,7 @@ class FileReadError(Exception):
 class FileReaderTool(Tool):
     name: str = Field("FILE_READER_TOOL", description="A file reader tool.")
     description: str = Field(
-        "Read the contents of a file and return its content.",
+        "Read the contents of a file and return its content. Only works with text compatible files. Does not support binary files.",
         description="A brief description of what the tool does.",
     )
 
@@ -29,7 +29,7 @@ class FileReaderTool(Tool):
             ToolArgument(
                 name="file_path",
                 type="string",
-                description="The path to the file to read.",
+                description="The path to the file to read. It can be a file path or a URL.",
                 required=True,
             ),
             ToolArgument(
@@ -79,49 +79,52 @@ class FileReaderTool(Tool):
             logger.error(f"Error downloading file from {url}: {str(e)}")
             return None
 
-    def execute(self, path: str, encoding: str = "utf-8") -> str:
+    def execute(self, file_path: str, encoding: str = "utf-8") -> str:
         """Read a file or URL and return its contents."""
-        if not path.strip():
+        if not file_path.strip():
             logger.error("Path cannot be empty or whitespace.")
             return "Error: Path cannot be empty."
 
         temp_file = None
         try:
-            if self._is_url(path):
-                temp_file = self._download_file(path)
+            # First check if it's a URL before converting to Path
+            if self._is_url(file_path):
+                temp_file = self._download_file(file_path)
                 if not temp_file:
-                    raise FileReadError(f"Failed to download file from {path}")
-                file_path = temp_file
+                    raise FileReadError(f"Failed to download file from {file_path}")
+                path_to_read = temp_file
             else:
-                file_path = Path(path)
-                if not file_path.exists():
-                    error_msg = f"File '{file_path}' does not exist."
+                # Only convert to Path if it's a local file
+                path_to_read = Path(file_path).expanduser().resolve()
+                if not path_to_read.exists():
+                    error_msg = f"File '{path_to_read}' does not exist."
                     logger.error(error_msg)
                     raise FileReadError(error_msg)
 
-                if not file_path.is_file():
-                    error_msg = f"Path '{file_path}' is not a file."
+                if not path_to_read.is_file():
+                    error_msg = f"Path '{path_to_read}' is not a file."
                     logger.error(error_msg)
                     raise FileReadError(error_msg)
 
-            with open(file_path, encoding=encoding) as file:
-                content = file.read()
-
-            logger.info(f"Successfully read {'URL' if temp_file else 'file'}: {path}")
-            return content
+            with open(path_to_read, 'r', encoding=encoding) as f:
+                content = f.read()
+                logger.info(f"Read file '{path_to_read}' successfully.")
+                return content
 
         except UnicodeDecodeError as e:
-            error_msg = f"Failed to decode file '{path}' with encoding '{encoding}': {str(e)}"
-            logger.error(error_msg)
-            raise FileReadError(error_msg) from e
+            logger.error(f"Encoding error for file '{file_path}': {str(e)}")
+            return f"Error: Unable to decode file '{file_path}' with encoding '{encoding}'."
+        except FileReadError as e:
+            return f"Error: {str(e)}"
         except Exception as e:
-            error_msg = f"Unexpected error reading {'URL' if temp_file else 'file'} '{path}': {str(e)}"
-            logger.error(error_msg)
-            raise FileReadError(error_msg) from e
+            logger.error(f"Unexpected error: {str(e)}")
+            return "Error: An unexpected error occurred while reading the file."
         finally:
             if temp_file and temp_file.exists():
                 try:
                     temp_file.unlink()
                     logger.debug(f"Cleaned up temporary file: {temp_file}")
                 except Exception as e:
-                    logger.warning(f"Failed to clean up temporary file {temp_file}: {str(e)}")
+                    logger.warning(
+                        f"Failed to clean up temporary file {temp_file}: {str(e)}"
+                    )

@@ -44,7 +44,7 @@ class Agent:
 
     def register(self, tool: Tool) -> None:
         """Register a new tool with the agent."""
-        self.tools[tool.name.upper()] = tool
+        self.tools[tool.name] = tool
         self.logger.info(f"Registered tool: {tool.name}")
 
     def execute(self, query: str) -> str:
@@ -138,7 +138,7 @@ class Agent:
 
     def _handle_action(self, action: Action) -> str:
         """Handle tool execution"""
-        tool_name = action.tool_name.upper()
+        tool_name = action.tool_name
         tool = self.tools.get(tool_name)
 
         if not tool:
@@ -173,7 +173,7 @@ class Agent:
             return result
         except Exception:
             error_trace = traceback.format_exc()
-            safe_error_trace = Text(error_trace).escape()  # Escape special characters
+            safe_error_trace = Text(error_trace)  # Escape special characters
             self.console.print(
                 f"[red]Error executing tool {tool_name}:[/red]\n{safe_error_trace}"
             )
