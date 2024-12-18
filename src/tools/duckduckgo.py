@@ -25,7 +25,7 @@ class DuckDuckGoAPIError(Exception):
 
 class DuckDuckGoSearchTool(Tool):
     name: str = Field(
-        "DUCKDUCKGO_SEARCH_TOOL",
+        "DuckDuckGoSearchTool",
         description="A DuckDuckGo search tool for finding current URL pages containing information about a query.",
     )
     description: str = Field(

@@ -15,7 +15,7 @@ class LLMAgentError(Exception):
 
 
 class LLMAgentTool(Tool):
-    name: str = Field("LLM_AGENT_TOOL", description="An LLM Agent tool.")
+    name: str = Field("LLMAgentTool", description="An LLM Agent tool.")
     description: str = Field(
         """
         Generates AI responses based on a specified persona, prompt, and context.

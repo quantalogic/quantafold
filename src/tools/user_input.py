@@ -12,7 +12,7 @@ console = Console()
 
 
 class UserInputTool(Tool):
-    name: str = Field("USER_INPUT_TOOL", description="A tool to get input from the user.")
+    name: str = Field("UserInputTool", description="A tool to get input from the user.")
     description: str = Field(
         "Prompts the user for input and returns their response. Can handle multiline input.",
         description="A brief description of what the tool does.",

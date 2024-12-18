@@ -43,7 +43,7 @@ class FileReaderTool(Tool):
     }
 
     name: str = Field(
-        "FILE_READER_TOOL",
+        "FileReaderTool",
         description="A file reader tool that supports both text and binary files, converting binary files to markdown.",
     )
     description: str = Field(

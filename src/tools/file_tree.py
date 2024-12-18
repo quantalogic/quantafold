@@ -17,7 +17,7 @@ class FileListingError(Exception):
 
 class FileTreeTool(Tool):
     name: str = Field(
-        "FILE_TREE_TOOL",
+        "FileTreeTool",
         description="A tool to list files in a directory in a tree view.",
     )
     description: str = Field(

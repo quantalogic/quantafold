@@ -34,7 +34,7 @@ class BeautifulSoupTool(Tool):
     _session: requests.Session = PrivateAttr()
 
     name: str = Field(
-        "BEAUTIFULSOUP_TOOL",
+        "BeautifulSoupTool",
         description="A tool to read and parse web pages using BeautifulSoup.",
     )
     description: str = Field(

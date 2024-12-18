@@ -15,7 +15,7 @@ class FileWriteError(Exception):
 
 
 class FileWriterTool(Tool):
-    name: str = Field("FILE_WRITER_TOOL", description="A file writer tool.")
+    name: str = Field("FileWriterTool", description="A file writer tool.")
     description: str = Field(
         "Write content to a file, creating the file if it doesn't exist.",
         description="A brief description of what the tool does.",

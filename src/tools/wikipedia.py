@@ -50,7 +50,7 @@ class WikipediaAPIError(Exception):
 
 class WikipediaTool(Tool):
     name: str = Field(
-        "WIKIPEDIA_TOOL",
+        "WikipediaTool",
         description="A Wikipedia search tool for fetching article summaries.",
     )
     description: str = Field(
