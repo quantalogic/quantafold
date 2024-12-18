@@ -3,7 +3,7 @@ import mimetypes
 import tempfile
 import urllib.parse
 from pathlib import Path
-from typing import ClassVar, List, Optional, Set
+from typing import ClassVar, List, Optional, Set, Tuple
 
 import requests
 from markitdown import MarkItDown
@@ -28,6 +28,18 @@ class FileReaderTool(Tool):
         "application/msword",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "text/plain",
+        "text/markdown",
+        "text/x-markdown",
+        "text/html",
+        "text/xml",
+        "application/json",
+        "text/csv",
+        "application/x-yaml",
+        "text/yaml",
+        "text/x-python",
+        "text/x-java-source",
+        "text/javascript",
+        "application/javascript",
     }
 
     name: str = Field(
@@ -68,27 +80,53 @@ class FileReaderTool(Tool):
         except ValueError:
             return False
 
+    def _extract_mime_from_headers(self, headers: dict) -> Optional[str]:
+        """Extract and validate MIME type from HTTP headers."""
+        content_type = headers.get("content-type", "").lower()
+        if not content_type:
+            return None
+
+        # Split content type and remove parameters
+        mime_type = content_type.split(";")[0].strip()
+
+        # Special handling for text types with charset
+        if mime_type.startswith("text/") or mime_type in self.ALLOWED_MIME_TYPES:
+            return mime_type
+
+        return None
+
     def _get_mime_type(
         self, file_path: Path, content_type: str = None
     ) -> Optional[str]:
         """Get MIME type from content-type header or file extension."""
-        if content_type and content_type in self.ALLOWED_MIME_TYPES:
-            return content_type
+        if content_type:
+            # Clean up content type string
+            mime_type = content_type.split(";")[0].strip().lower()
+            if mime_type in self.ALLOWED_MIME_TYPES:
+                return mime_type
 
         # Try to guess from file extension
         mime_type = mimetypes.guess_type(str(file_path))[0]
-        if mime_type:
+        if mime_type and mime_type in self.ALLOWED_MIME_TYPES:
             return mime_type
 
-        # Fallback: Check file extension directly
-        if file_path.suffix.lower() == ".pdf":
-            return "application/pdf"
-        elif file_path.suffix.lower() in [".doc", ".docx"]:
-            return "application/msword"
-        elif file_path.suffix.lower() == ".txt":
-            return "text/plain"
+        # Check common text file extensions
+        suffix = file_path.suffix.lower()
+        extension_map = {
+            ".md": "text/markdown",
+            ".py": "text/x-python",
+            ".js": "text/javascript",
+            ".json": "application/json",
+            ".yaml": "application/x-yaml",
+            ".yml": "application/x-yaml",
+            ".xml": "text/xml",
+            ".html": "text/html",
+            ".htm": "text/html",
+            ".csv": "text/csv",
+            ".txt": "text/plain",
+        }
 
-        return None
+        return extension_map.get(suffix)
 
     def _validate_file(self, file_path: Path, content_type: str = None) -> bool:
         """Validate file size and type. Returns True if file needs markdown conversion."""
@@ -110,8 +148,8 @@ class FileReaderTool(Tool):
 
         return False
 
-    def _download_file(self, url: str) -> Optional[Path]:
-        """Download a file from a URL with security checks."""
+    def _download_file(self, url: str) -> Tuple[Optional[Path], Optional[str]]:
+        """Download a file from a URL and return the file path and content type."""
         try:
             response = requests.get(
                 url,
@@ -127,13 +165,13 @@ class FileReaderTool(Tool):
                     f"File size exceeds {self.MAX_FILE_SIZE/1024/1024}MB limit"
                 )
 
-            content_type = response.headers.get("content-type", "").split(";")[0]
+            content_type = self._extract_mime_from_headers(response.headers)
             with tempfile.NamedTemporaryFile(
                 suffix=Path(url).suffix, delete=False
             ) as temp_file:
                 for chunk in response.iter_content(chunk_size=8192):
                     temp_file.write(chunk)
-                return Path(temp_file.name)
+                return Path(temp_file.name), content_type
 
         except requests.exceptions.RequestException as e:
             raise FileReadError(f"Failed to download file: {str(e)}")
@@ -145,10 +183,11 @@ class FileReaderTool(Tool):
             return "Error: Path cannot be empty."
 
         temp_file = None
+        content_type = None
         try:
             # Handle URL or local file
             if self._is_url(file_path):
-                temp_file = self._download_file(file_path)
+                temp_file, content_type = self._download_file(file_path)
                 if not temp_file:
                     raise FileReadError(f"Failed to download file from {file_path}")
                 path_to_read = temp_file
@@ -160,7 +199,7 @@ class FileReaderTool(Tool):
                     raise FileReadError(f"Path '{path_to_read}' is not a file.")
 
             # Validate and determine if markdown conversion is needed
-            needs_conversion = self._validate_file(path_to_read)
+            needs_conversion = self._validate_file(path_to_read, content_type)
 
             if needs_conversion:
                 # Convert binary file to markdown
