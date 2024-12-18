@@ -64,15 +64,29 @@ class WikipediaTool(Tool):
             required=False,
         ),
         ToolArgument(
-            name="max_lines",
+            name="number_of_articles",
             type="int",
-            description="Maximum number of lines to return",
-            default="100",
+            description="Number of articles to display in results",
+            default="1",
+            required=False,
+        ),
+        ToolArgument(
+            name="max_lines_per_article",
+            type="int",
+            description="Maximum number of lines to show per article",
+            default="5",
+            required=False,
         ),
     ]
 
-    def execute(self, query: str, lang: str = "en", max_lines: str = "100") -> str:
-        """Simple Wikipedia search and fetch."""
+    def execute(
+        self,
+        query: str,
+        lang: str = "en",
+        number_of_articles: str = "5",
+        max_lines_per_article: str = "100",
+    ) -> str:
+        """Search Wikipedia and fetch multiple article summaries."""
         if not query.strip():
             return "Error: Query cannot be empty."
 
@@ -89,12 +103,26 @@ class WikipediaTool(Tool):
             if not search_results:
                 return f"No Wikipedia articles found for '{query}'"
 
-            # Get first result's summary
-            try:
-                return self.fetch_summary(search_results[0], max_lines)
-            except wikipedia.exceptions.DisambiguationError as e:
-                # If disambiguation page, return first option's summary
-                return self.fetch_summary(e.options[0], max_lines)
+            num_articles = min(int(number_of_articles), len(search_results))
+            results = []
+
+            for i, title in enumerate(search_results[:num_articles], 1):
+                try:
+                    summary = self.fetch_summary(title, max_lines_per_article)
+                    results.append(f"{i}. {title}\n{summary}\n")
+                except wikipedia.exceptions.DisambiguationError as e:
+                    # If disambiguation page, use first option
+                    summary = self.fetch_summary(e.options[0], max_lines_per_article)
+                    results.append(f"{i}. {e.options[0]}\n{summary}\n")
+                except Exception as e:
+                    logger.error(f"Error fetching article '{title}': {e}")
+                    continue
+
+            return (
+                "\n".join(results)
+                if results
+                else f"Failed to fetch articles for '{query}'"
+            )
 
         except Exception as e:
             logger.error(f"Wikipedia API error for query '{query}': {e}")

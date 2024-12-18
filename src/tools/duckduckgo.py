@@ -26,7 +26,7 @@ class DuckDuckGoAPIError(Exception):
 class DuckDuckGoSearchTool(Tool):
     name: str = Field(
         "SEARCH_DUCKDUCKGO",
-        description="A DuckDuckGo search tool for finding current information on the web.",
+        description="A DuckDuckGo search tool for finding current URL pages containing information about a query.",
     )
     description: str = Field(
         """Search DuckDuckGo for a given query and return relevant results.
@@ -43,8 +43,22 @@ class DuckDuckGoSearchTool(Tool):
         ToolArgument(
             name="max_results",
             type="int",
-            description="Maximum number of results to return",
+            description="Maximum number of total results to fetch",
             default="30",
+            required=False,
+        ),
+        ToolArgument(
+            name="number_of_articles",
+            type="int",
+            description="Number of articles to display in results",
+            default="5",
+            required=False,
+        ),
+        ToolArgument(
+            name="max_lines_per_article",
+            type="int",
+            description="Maximum number of lines to show per article",
+            default="3",
             required=False,
         ),
     ]
@@ -56,7 +70,20 @@ class DuckDuckGoSearchTool(Tool):
         with DDGS() as ddgs:
             return list(ddgs.text(query, max_results=max_results))
 
-    def execute(self, query: str, max_results: str = "5") -> str:
+    def truncate_text(self, text: str, max_lines: int) -> str:
+        """Truncate text to specified number of lines."""
+        lines = text.split('\n')
+        if len(lines) <= max_lines:
+            return text
+        return '\n'.join(lines[:max_lines]) + '...'
+
+    def execute(
+        self, 
+        query: str, 
+        max_results: str = "30",
+        number_of_articles: str = "5",
+        max_lines_per_article: str = "3"
+    ) -> str:
         """Execute a search query using DuckDuckGo and return results."""
         if not query.strip():
             logger.error("Query cannot be empty or whitespace.")
@@ -64,8 +91,12 @@ class DuckDuckGoSearchTool(Tool):
 
         try:
             max_results_int = int(max_results)
+            num_articles = min(int(number_of_articles), max_results_int)
+            max_lines = max(1, int(max_lines_per_article))
+
             if max_results_int <= 0:
                 raise ValueError("max_results must be a positive integer.")
+            
             time.sleep(0.5)  # Rate limiting
 
             results = self.cached_search(query, max_results_int)
@@ -75,18 +106,24 @@ class DuckDuckGoSearchTool(Tool):
                 return f"No results found for '{query}'"
 
             formatted_results = []
-            for idx, result in enumerate(results, 1):
+            for idx, result in enumerate(results[:num_articles], 1):
                 title = result.get("text", "").split(" - ")[0]
                 link = result.get("href", "No URL")
-                description = result.get("text", "No description")
-                summary = result.get("summary", "No summary")  # Extract summary
+                description = self.truncate_text(
+                    result.get("text", "No description"),
+                    max_lines
+                )
+                summary = self.truncate_text(
+                    result.get("summary", "No summary"),
+                    max_lines
+                )
 
                 formatted_results.append(
                     f"{idx}. {title}\n   URL: {link}\n   Description: {description}\n   Summary: {summary}\n"
                 )
 
             logger.info(
-                f"Search successful for query '{query}' with {len(results)} results."
+                f"Search successful: {len(formatted_results)} articles from {len(results)} results for '{query}'"
             )
             return "\n".join(formatted_results)
 
