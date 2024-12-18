@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"  # Updated Python version requirement
+python = ">=3.10,<4.0"
 pydantic = "^2.5.2"
 python-dotenv = "^1.0.0"
 litellm = "^1.10.1"
@@ -23,6 +23,7 @@ requests = "^2.31.0"
 pytest = "^7.4.3"
 isort = "^5.12.0"
 ruff = "^0.1.6"
+vcrpy = "^5.1.0"  # Add VCR.py for HTTP request recording
 
 [build-system]
 requires = ["poetry-core"]
@@ -32,6 +33,14 @@ build-backend = "poetry.core.masonry.api"
 line-length = 88
 target-version = "py39"
 select = ["E", "F", "I", "N", "W", "B", "COM", "C4", "UP", "PT", "RET", "SIM"]
-extend-ignore = ["E501", "COM812","UP006","UP035","N805","N817","RET504"]  # Example of extending ignored rules including COM812
+extend-ignore = ["E501", "COM812","UP006","UP035","N805","N817","RET504"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    ".",
+    "src",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
 
 

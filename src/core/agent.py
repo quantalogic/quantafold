@@ -186,9 +186,9 @@ class Agent:
         self.console.print("\n[bold blue]Generated Prompt[/bold blue]")
         prompt_for_display = prompt.replace(output_format(), "")
         ## Remove content <available_tools> from prompt
-        prompt_for_display = prompt_for_display.replace(
-            self._available_tools_description("xml"), ""
-        )
+        #prompt_for_display = prompt_for_display.replace(
+        #    self._available_tools_description("xml"), ""
+        #)
         self.console.print(Panel(prompt_for_display, border_style="blue"))
 
         with Progress(

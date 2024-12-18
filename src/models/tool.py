@@ -1,6 +1,5 @@
-from typing import List, Literal, Optional
-
-from pydantic import BaseModel, Field, validator
+from typing import Any, Dict, List, Literal, Optional
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class ToolArgument(BaseModel):
@@ -20,7 +19,8 @@ class ToolArgument(BaseModel):
 
 
 class Tool(BaseModel):
-    model_config = {"extra": "forbid"}  # Disallow extra fields
+    model_config = ConfigDict(extra="forbid")  # V2 style configuration
+    
     name: str = Field(..., description="The unique name of the tool.")
     description: str = Field(
         ..., description="A brief description of what the tool does."
@@ -32,23 +32,25 @@ class Tool(BaseModel):
         False, description="Indicates if the tool needs validation."
     )
     need_parent_context: bool = Field(
-        False, description="Indicates if the tool needs the parent context.", exclude=True
+        False, description="Indicates if the tool needs the parent context.",
+        exclude=True
     )
 
-    @validator("arguments", each_item=True)
-    def validate_arguments(cls, arg):  # noqa: N805
-        if not isinstance(arg, ToolArgument):
-            raise ValueError("All items in arguments must be instances of ToolArgument")
-        return arg
+    @field_validator("arguments", mode="before")  # V2 style validator
+    @classmethod
+    def validate_arguments(cls, v: Any) -> List[ToolArgument]:
+        """Validate the arguments list."""
+        if isinstance(v, list):
+            return [
+                ToolArgument(**arg) if isinstance(arg, dict) else arg
+                for arg in v
+            ]
+        return []
 
     def execute(self, **kwargs) -> str:
         """Execute the tool with provided arguments."""
         raise NotImplementedError("This method should be implemented by subclasses.")
 
     def to_json(self) -> str:
-        """Convert the tool to a JSON string representation.
-
-        Returns:
-            str: A JSON string representing the tool
-        """
+        """Convert the tool to a JSON string representation."""
         return self.model_dump_json()

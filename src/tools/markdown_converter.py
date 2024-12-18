@@ -81,16 +81,36 @@ class MarkdownConverterTool(Tool):
         except ValueError:
             return False
 
-    def _validate_file(self, file_path: Path) -> None:
+    def _get_mime_type(self, file_path: Path, content_type: str = None) -> Optional[str]:
+        """Get MIME type from content-type header or file extension."""
+        if content_type and content_type in self.ALLOWED_MIME_TYPES:
+            return content_type
+        
+        # Try to guess from file extension
+        mime_type = mimetypes.guess_type(str(file_path))[0]
+        if mime_type:
+            return mime_type
+            
+        # Fallback: Check file extension directly
+        if file_path.suffix.lower() == '.pdf':
+            return 'application/pdf'
+        elif file_path.suffix.lower() in ['.doc', '.docx']:
+            return 'application/msword'
+        elif file_path.suffix.lower() == '.txt':
+            return 'text/plain'
+            
+        return None
+
+    def _validate_file(self, file_path: Path, content_type: str = None) -> None:
         """Validate file size and type."""
         if file_path.stat().st_size > self.MAX_FILE_SIZE:
             raise ValidationError(
                 f"File size exceeds {self.MAX_FILE_SIZE/1024/1024}MB limit"
             )
 
-        mime_type = mimetypes.guess_type(str(file_path))[0]
-        if mime_type not in self.ALLOWED_MIME_TYPES:
-            raise ValidationError(f"Unsupported file type: {mime_type}")
+        mime_type = self._get_mime_type(file_path, content_type)
+        if not mime_type or mime_type not in self.ALLOWED_MIME_TYPES:
+            raise ValidationError(f"Unsupported file type: {mime_type or 'unknown'}")
 
     def _download_file(self, url: str) -> Optional[Path]:
         """Download a file from a URL with security checks."""
@@ -109,14 +129,13 @@ class MarkdownConverterTool(Tool):
                     f"File size exceeds {self.MAX_FILE_SIZE/1024/1024}MB limit"
                 )
 
-            content_type = response.headers.get("content-type", "")
-            if content_type not in self.ALLOWED_MIME_TYPES:
-                raise ValidationError(f"Unsupported content type: {content_type}")
-
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            content_type = response.headers.get("content-type", "").split(';')[0]  # Remove charset
+            with tempfile.NamedTemporaryFile(suffix=Path(url).suffix, delete=False) as temp_file:
                 for chunk in response.iter_content(chunk_size=8192):
                     temp_file.write(chunk)
-                return Path(temp_file.name)
+                temp_path = Path(temp_file.name)
+                self._validate_file(temp_path, content_type)  # Validate with content-type
+                return temp_path
 
         except requests.exceptions.RequestException as e:
             raise DownloadError(f"Failed to download file: {str(e)}")
@@ -146,7 +165,7 @@ class MarkdownConverterTool(Tool):
                 temp_file = self._download_file(path)
                 if not temp_file:
                     raise DownloadError(f"Failed to download {path}")
-                file_path = temp_file
+                file_path = temp_file.resolve()  # Ensure temp file path is resolved
             else:
                 if not file_path.exists():
                     raise FileReadError(f"File '{file_path}' does not exist")
@@ -155,9 +174,10 @@ class MarkdownConverterTool(Tool):
 
             self._validate_file(file_path)
 
-            with MarkItDown() as markitdown:
-                result = markitdown.convert(str(file_path))
-                return result.text_content
+            # Create MarkItDown instance without context manager
+            markitdown = MarkItDown()
+            result = markitdown.convert(str(file_path))  # Path is already resolved
+            return result.text_content
 
         finally:
             if temp_file and temp_file.exists():

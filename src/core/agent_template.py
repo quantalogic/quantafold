@@ -79,7 +79,8 @@ def output_format() -> str:
             - Ensure steps follow a logical sequence.
             - Clearly state the dependencies between steps.
             - Confirm the final goal is realistic and answerable.
-            - Choose the action to take based on the current context 
+            - Choose the action to take based on the current context
+            - Write which tool in in <available_tools> you will use and why
             - If you cannot get information enough from a previous step, try other tool or arguments
         </reasoning>
         <to_do>
