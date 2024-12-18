@@ -52,7 +52,7 @@ logging.basicConfig(
 # MODEL_NAME = "ollama/llama3.1:latest"
 # MODEL_NAME = "ollama/mistral-nemo"
 # MODEL_NAME = "bedrock/amazon.nova-micro-v1:0"
-# MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
+MODEL_NAME = "bedrock/amazon.nova-lite-v1:0"
 # MODEL_NAME = "bedrock/amazon.nova-pro-v1:0"
 # MODEL_NAME = "lm_studio/llama-3.3-70b-instruct"
 # MODEL_NAME = "lm_studio/qwen2.5-coder-14b-instruct-mlx"

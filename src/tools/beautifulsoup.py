@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 from models.tool import Tool, ToolArgument
 from pydantic import Field, PrivateAttr
 from requests.adapters import HTTPAdapter
+from requests.exceptions import ConnectionError, HTTPError, RequestException
 from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,8 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36",
 ]
 
 
@@ -75,9 +78,10 @@ class BeautifulSoupTool(Tool):
         """Create a session with retry strategy"""
         session = requests.Session()
         retry_strategy = Retry(
-            total=3,
-            backoff_factor=1,
+            total=5,
+            backoff_factor=1,  # Exponential backoff factor
             status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "OPTIONS"],
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount("http://", adapter)
@@ -88,10 +92,21 @@ class BeautifulSoupTool(Tool):
         """Generate random headers for the request"""
         return {
             "User-Agent": random.choice(USER_AGENTS),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "DNT": "1",
+            "Accept": random.choice([
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "*/*;q=0.7",
+            ]),
+            "Accept-Language": random.choice([
+                "en-US,en;q=0.9",
+                "en-GB,en;q=0.9",
+                "en;q=0.8",
+            ]),
+            "Accept-Encoding": random.choice([
+                "gzip, deflate, br",
+                "gzip, deflate",
+                "identity",
+            ]),
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
         }
@@ -217,9 +232,11 @@ class BeautifulSoupTool(Tool):
             # Ensure timeout is an integer
             timeout = int(timeout)
 
+            headers = self._get_headers()
+
             response = self._session.get(
                 url,
-                headers=self._get_headers(),
+                headers=headers,
                 timeout=timeout,
                 verify=True,  # SSL verification
             )
@@ -244,12 +261,12 @@ class BeautifulSoupTool(Tool):
                 return str(content)
             return content
 
-        except requests.RequestException as e:
+        except (HTTPError, ConnectionError) as e:
+            logger.error(f"Network error when accessing '{url}': {e}")
+            return f"Error: Network error when accessing '{url}': {e}"
+        except RequestException as e:
             logger.error(f"Request error for URL '{url}': {e}")
-            return f"Error: {e}"
-        except BeautifulSoupAPIError as e:
-            logger.error(f"BeautifulSoupAPIError for URL '{url}': {e}")
-            return f"Error: {str(e)}"
+            return f"Error: Request error for URL '{url}': {e}"
         except Exception as e:
             logger.error(f"Unexpected error for URL '{url}': {e}")
-            raise BeautifulSoupAPIError(f"Failed to read web page: {e}") from e
+            return f"Error: An unexpected error occurred: {e}"

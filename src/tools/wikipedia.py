@@ -112,10 +112,8 @@ class WikipediaTool(Tool):
                 return f"No Wikipedia articles found for '{query}'"
 
             best_match = find_best_match(cleaned_query, search_results)
-            if best_match:
-                search_results.insert(
-                    0, search_results.pop(search_results.index(best_match))
-                )
+            if not best_match:
+                return f"No relevant Wikipedia articles found for '{query}'"
 
             num_articles = min(int(number_of_articles), len(search_results))
             results = []
@@ -125,13 +123,10 @@ class WikipediaTool(Tool):
                     summary = self.fetch_summary(title, max_lines_per_article)
                     page_url = wikipedia.page(title, auto_suggest=False).url
                     results.append(f"{i}. {title}\n{summary}\nLink: {page_url}\n")
-                except wikipedia.exceptions.DisambiguationError as e:
-                    # If disambiguation page, use first option
-                    summary = self.fetch_summary(e.options[0], max_lines_per_article)
-                    page_url = wikipedia.page(e.options[0], auto_suggest=False).url
-                    results.append(
-                        f"{i}. {e.options[0]}\n{summary}\nLink: {page_url}\n"
-                    )
+                except wikipedia.exceptions.DisambiguationError:
+                    return f"The term '{title}' is ambiguous. Please provide a more specific query."
+                except wikipedia.exceptions.PageError:
+                    continue  # Skip pages that do not exist
                 except Exception as e:
                     logger.error(f"Error fetching article '{title}': {e}")
                     continue
@@ -139,7 +134,7 @@ class WikipediaTool(Tool):
             return (
                 "\n".join(results)
                 if results
-                else f"Failed to fetch articles for '{query}'"
+                else f"No relevant Wikipedia articles found for '{query}'"
             )
 
         except Exception as e:
@@ -149,7 +144,7 @@ class WikipediaTool(Tool):
     def fetch_summary(self, title: str, max_lines: str) -> str:
         """Fetch and format article summary."""
         time.sleep(0.5)  # Rate limiting
-        page = wikipedia.page(title, auto_suggest=True)
+        page = wikipedia.page(title, auto_suggest=False)
         summary = page.summary
 
         if len(summary.split(".")) > int(max_lines):
