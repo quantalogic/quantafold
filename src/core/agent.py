@@ -44,7 +44,7 @@ class Agent:
 
     def register(self, tool: Tool) -> None:
         """Register a new tool with the agent."""
-        self.tools[tool.name] = tool
+        self.tools[tool.name.strip().upper()] = tool
         self.logger.info(f"Registered tool: {tool.name}")
 
     def execute(self, query: str) -> str:
@@ -138,7 +138,7 @@ class Agent:
 
     def _handle_action(self, action: Action) -> str:
         """Handle tool execution"""
-        tool_name = action.tool_name
+        tool_name = action.tool_name.strip().upper()
         tool = self.tools.get(tool_name)
 
         if not tool:
@@ -320,28 +320,6 @@ class Agent:
             content.append("-------------------")
         return "\n".join(content)
 
-        """Format past steps in XML or JSON format with pretty printing"""
-        if not self.done_steps:
-            return "No previous steps"
-
-        if format == "xml":
-            steps = [
-                PydanticToXMLSerializer.serialize(step) for step in self.done_steps
-            ]
-            return "\n".join(f"  {step}" for step in steps)
-
-        if format == "json":
-            return [
-                {
-                    "name": step.name,
-                    "description": step.description,
-                    "reason": step.reason,
-                    "result": step.result,
-                }
-                for step in self.done_steps
-            ]
-
-        raise ValueError(f"Unsupported format: {format}")
 
     def _first_xml_code_block(self, input: str) -> str:
         """Extract the first XML code block from the input string formatted in markdown using RegEx.

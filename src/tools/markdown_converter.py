@@ -3,7 +3,7 @@ import mimetypes
 import tempfile
 import urllib.parse
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import ClassVar, List, Optional, Set
 from urllib.parse import urlparse
 
 import requests
@@ -40,14 +40,18 @@ class MarkdownConverterTool(Tool):
         >>> markdown = converter.execute("document.pdf")
     """
 
-    # Constants
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-    TIMEOUT = 30  # seconds
-    ALLOWED_MIME_TYPES = {"application/pdf", "application/msword", "text/plain"}
+    # Constants with proper type annotations
+    MAX_FILE_SIZE: ClassVar[int] = 10 * 1024 * 1024  # 10MB
+    TIMEOUT: ClassVar[int] = 30  # seconds
+    ALLOWED_MIME_TYPES: ClassVar[Set[str]] = {
+        "application/pdf",
+        "application/msword",
+        "text/plain",
+    }
 
     name: str = Field(
         "READ_AND_CONVERT_TO_MARKDOWN_TOOL",
-        description="A file reader that converts to markdown, supporting URLs and file paths.",
+        description="A file reader that converts a PDF, DOCX, XLSX file to to markdown to simplify the text reading, supporting URLs and file paths.",
     )
     description: str = Field(
         "A file reader that converts files or URLs (PDF, DOCX, XLSX, etc.) to Markdown format.",
