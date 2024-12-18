@@ -104,7 +104,7 @@ def main() -> None:
     agent.register(FileTreeTool())
     agent.register(DuckDuckGoSearchTool())
     agent.register(BeautifulSoupTool())
-    agent.register(MarkdownConverterTool())
+    #agent.register(MarkdownConverterTool())
 
     # Build tool descriptions for welcome message
     tool_descriptions = "".join(

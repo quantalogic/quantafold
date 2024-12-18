@@ -1,10 +1,12 @@
 import logging
+import mimetypes
 import tempfile
 import urllib.parse
 from pathlib import Path
-from typing import List, Optional
+from typing import ClassVar, List, Optional, Set
 
 import requests
+from markitdown import MarkItDown
 from models.tool import Tool, ToolArgument
 from pydantic import Field
 
@@ -18,9 +20,22 @@ class FileReadError(Exception):
 
 
 class FileReaderTool(Tool):
-    name: str = Field("FILE_READER_TOOL", description="A file reader tool.")
+    # Add constants for file validation
+    MAX_FILE_SIZE: ClassVar[int] = 10 * 1024 * 1024  # 10MB
+    TIMEOUT: ClassVar[int] = 30  # seconds
+    ALLOWED_MIME_TYPES: ClassVar[Set[str]] = {
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain",
+    }
+
+    name: str = Field(
+        "FILE_READER_TOOL",
+        description="A file reader tool that supports both text and binary files, converting binary files to markdown.",
+    )
     description: str = Field(
-        "Read the contents of a textfile and return its content. Only works with text compatible files. Does not support binary files.",
+        "Read files and return contents. Supports text files directly and converts binary files (PDF, DOCX) to markdown.",
         description="A brief description of what the tool does.",
     )
 
@@ -53,63 +68,109 @@ class FileReaderTool(Tool):
         except ValueError:
             return False
 
+    def _get_mime_type(
+        self, file_path: Path, content_type: str = None
+    ) -> Optional[str]:
+        """Get MIME type from content-type header or file extension."""
+        if content_type and content_type in self.ALLOWED_MIME_TYPES:
+            return content_type
+
+        # Try to guess from file extension
+        mime_type = mimetypes.guess_type(str(file_path))[0]
+        if mime_type:
+            return mime_type
+
+        # Fallback: Check file extension directly
+        if file_path.suffix.lower() == ".pdf":
+            return "application/pdf"
+        elif file_path.suffix.lower() in [".doc", ".docx"]:
+            return "application/msword"
+        elif file_path.suffix.lower() == ".txt":
+            return "text/plain"
+
+        return None
+
+    def _validate_file(self, file_path: Path, content_type: str = None) -> bool:
+        """Validate file size and type. Returns True if file needs markdown conversion."""
+        if file_path.stat().st_size > self.MAX_FILE_SIZE:
+            raise FileReadError(
+                f"File size exceeds {self.MAX_FILE_SIZE/1024/1024}MB limit"
+            )
+
+        mime_type = self._get_mime_type(file_path, content_type)
+        if not mime_type:
+            # If no mime type detected, try as text file
+            return False
+
+        if mime_type in self.ALLOWED_MIME_TYPES and mime_type != "text/plain":
+            return True
+
+        if mime_type not in self.ALLOWED_MIME_TYPES:
+            raise FileReadError(f"Unsupported file type: {mime_type}")
+
+        return False
+
     def _download_file(self, url: str) -> Optional[Path]:
-        """Download a file from a URL and return its temporary path."""
+        """Download a file from a URL with security checks."""
         try:
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                response = requests.get(url, stream=True)
-                response.raise_for_status()
+            response = requests.get(
+                url,
+                stream=True,
+                timeout=self.TIMEOUT,
+                headers={"User-Agent": "FileReader/1.0"},
+            )
+            response.raise_for_status()
 
-                # Try to get the filename from Content-Disposition header
-                content_disposition = response.headers.get("content-disposition")
-                if content_disposition and "filename=" in content_disposition:
-                    filename = content_disposition.split("filename=")[1].strip("\"'")
-                else:
-                    # Use the last part of the URL as filename
-                    filename = url.split("/")[-1]
+            content_length = int(response.headers.get("content-length", 0))
+            if content_length > self.MAX_FILE_SIZE:
+                raise FileReadError(
+                    f"File size exceeds {self.MAX_FILE_SIZE/1024/1024}MB limit"
+                )
 
-                temp_path = Path(temp_file.name)
+            content_type = response.headers.get("content-type", "").split(";")[0]
+            with tempfile.NamedTemporaryFile(
+                suffix=Path(url).suffix, delete=False
+            ) as temp_file:
                 for chunk in response.iter_content(chunk_size=8192):
                     temp_file.write(chunk)
+                return Path(temp_file.name)
 
-                logger.info(f"Downloaded file from {url} to {temp_path}")
-                return temp_path
-
-        except Exception as e:
-            logger.error(f"Error downloading file from {url}: {str(e)}")
-            return None
+        except requests.exceptions.RequestException as e:
+            raise FileReadError(f"Failed to download file: {str(e)}")
 
     def execute(self, file_path: str, encoding: str = "utf-8") -> str:
-        """Read a file or URL and return its contents."""
+        """Read a file or URL and return its contents, converting to markdown if needed."""
         if not file_path.strip():
             logger.error("Path cannot be empty or whitespace.")
             return "Error: Path cannot be empty."
 
         temp_file = None
         try:
-            # First check if it's a URL before converting to Path
+            # Handle URL or local file
             if self._is_url(file_path):
                 temp_file = self._download_file(file_path)
                 if not temp_file:
                     raise FileReadError(f"Failed to download file from {file_path}")
                 path_to_read = temp_file
             else:
-                # Only convert to Path if it's a local file
                 path_to_read = Path(file_path).expanduser().resolve()
                 if not path_to_read.exists():
-                    error_msg = f"File '{path_to_read}' does not exist."
-                    logger.error(error_msg)
-                    raise FileReadError(error_msg)
-
+                    raise FileReadError(f"File '{path_to_read}' does not exist.")
                 if not path_to_read.is_file():
-                    error_msg = f"Path '{path_to_read}' is not a file."
-                    logger.error(error_msg)
-                    raise FileReadError(error_msg)
+                    raise FileReadError(f"Path '{path_to_read}' is not a file.")
 
-            with open(path_to_read, 'r', encoding=encoding) as f:
-                content = f.read()
-                logger.info(f"Read file '{path_to_read}' successfully.")
-                return content
+            # Validate and determine if markdown conversion is needed
+            needs_conversion = self._validate_file(path_to_read)
+
+            if needs_conversion:
+                # Convert binary file to markdown
+                markitdown = MarkItDown()
+                result = markitdown.convert(str(path_to_read))
+                return result.text_content
+            else:
+                # Read as text file
+                with open(path_to_read, "r", encoding=encoding) as f:
+                    return f.read()
 
         except UnicodeDecodeError as e:
             logger.error(f"Encoding error for file '{file_path}': {str(e)}")
