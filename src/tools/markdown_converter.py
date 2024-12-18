@@ -50,7 +50,7 @@ class MarkdownConverterTool(Tool):
     }
 
     name: str = Field(
-        "READ_AND_CONVERT_TO_MARKDOWN_TOOL",
+        "MARKDOWN_CONVERTER_TOOL",
         description="A file reader that converts a PDF, DOCX, XLSX file to to markdown to simplify the text reading, supporting URLs and file paths.",
     )
     description: str = Field(

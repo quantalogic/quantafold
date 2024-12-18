@@ -46,7 +46,7 @@ class WikipediaAPIError(Exception):
 
 class WikipediaTool(Tool):
     name: str = Field(
-        "SEARCH_WIKIPEDIA",
+        "SEARCH_WIKIPEDIA_TOOL",
         description="A Wikipedia search tool, can used to fetch summaries of Wikipedia articles.",
     )
     description: str = Field(

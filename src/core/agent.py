@@ -273,11 +273,20 @@ class Agent:
 
         ## Done steps
         content.append("  <done>")
-        for step in self.done_steps:
+        for step in self.done_steps[:-1]:
             content.append(
                 "    " + PydanticToXMLSerializer.serialize(step, pretty=True)
             )
         content.append("  </done>")
+
+        ## Last done step
+        if self.done_steps:
+            content.append("  <last_done>")
+            content.append("    <!-- Last done step, must be assessed to verify that step goal has been achieved to plan what next to do -->")
+            content.append("    " + PydanticToXMLSerializer.serialize(self.done_steps[-1], pretty=True))
+            content.append("  </last_done>")
+        else:
+            content.append("  <last_done></last_done>")
 
         content.append("")
 
@@ -320,7 +329,6 @@ class Agent:
             content.append("-------------------")
         return "\n".join(content)
 
-
     def _first_xml_code_block(self, input: str) -> str:
         """Extract the first XML code block from the input string formatted in markdown using RegEx.
         Args:
@@ -350,10 +358,12 @@ class Agent:
     def _available_tools_description(self, format: str) -> str:
         """Get the description of all available tools in XML format."""
         if format == "xml":
-            descriptions = [
-                PydanticToXMLSerializer.serialize(tool, pretty=True)
-                for tool in self.tools.values()
-            ]
+            descriptions: list[str] = []
+            descriptions.append("<! -- Available tools -->")
+            #  Appen tool name, as XML comment
+            for tool in self.tools.values():
+                descriptions.append(f"<!-- {tool.name} -->")
+                descriptions.append(PydanticToXMLSerializer.serialize(tool, pretty=True))
             return "\n".join(descriptions)
         if format == "json":
             return {tool.name: tool.to_json() for tool in self.tools.values()}

@@ -15,7 +15,7 @@ class CommandExecutionError(Exception):
 
 
 class ShellCommandTool(Tool):
-    name: str = Field("SHELL_COMMAND", description="A shell command tool.")
+    name: str = Field("SHELL_COMMAND_TOOL", description="A shell command tool.")
     description: str = Field(
         "Execute a shell command and return its output.",
         description="A brief description of what the tool does.",

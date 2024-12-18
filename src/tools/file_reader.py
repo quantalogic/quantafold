@@ -20,7 +20,7 @@ class FileReadError(Exception):
 class FileReaderTool(Tool):
     name: str = Field("FILE_READER_TOOL", description="A file reader tool.")
     description: str = Field(
-        "Read the contents of a file and return its content. Only works with text compatible files. Does not support binary files.",
+        "Read the contents of a textfile and return its content. Only works with text compatible files. Does not support binary files.",
         description="A brief description of what the tool does.",
     )
 
