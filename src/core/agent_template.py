@@ -69,6 +69,7 @@ def output_format() -> str:
         <reasoning>
             - Reformulate the query with your own words.
             - Be very careful with query that imply a temporal context, include date and time if relevant, reformulate the current date and time.
+            - Assess if the last step done is relevant to the query or not.
             - Reformulate what has been done in the past to answer the query.
             - Review if recent completed steps have moved us closer to the goal. What gaps remain? What is Missing ?
             - Reformulate what need to be done according to the history.
